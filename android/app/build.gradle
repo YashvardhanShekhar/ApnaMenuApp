@@ -116,4 +116,16 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+    // Import the Firebase BoM
+    implementation(platform("com.google.firebase:firebase-bom:33.12.0"))
+
+    // Add Firebase Analytics dependency
+    implementation("com.google.firebase:firebase-analytics")
+
+    // Add other Firebase dependencies as needed
 }
+
+apply plugin: 'com.android.application'
+apply plugin: 'com.google.gms.google-services'
+apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"

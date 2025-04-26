@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "1054196927034",
+    "firebase_url": "https://apnamenu-snap-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "apnamenu-snap",
+    "storage_bucket": "apnamenu-snap.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1054196927034:android:dcc3ce8f90e32a0f8dc303",
+        "android_client_info": {
+          "package_name": "com.apnamenu"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1054196927034-m3lgds069h7sub83vtiv383af28gf7i9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.apnamenu",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "1054196927034-8igrjjbnv8qq1lii98f4o9nc76jdovq1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCXLq8MqQmyKxzi-uSHO4he1eoz4UBy7gQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1054196927034-8igrjjbnv8qq1lii98f4o9nc76jdovq1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
