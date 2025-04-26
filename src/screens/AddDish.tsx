@@ -16,9 +16,36 @@ import {Formik} from 'formik';
 import * as Yup from 'yup';
 import {userProps} from '../App'; // Import userProps from App.tsx
 import { useNavigation } from '@react-navigation/native';
+import { addNewDish } from '../components/databaseManager';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Transform your schema to use async validation
 const AddDishSchema = Yup.object().shape({
-  dishName: Yup.string().required('Dish name is required'),
+  dishName: Yup.string()
+    .required('Dish name is required')
+    .test(
+      'unique-dish-name',
+      'Dish name already exists in this category',
+      async function(value) {
+        if (!value) return true; // Skip validation if empty (it's handled by required)
+        
+        try {
+          const category = this.parent.category;
+          const data = await AsyncStorage.getItem('data');
+          if (!data) return true;
+          
+          const parsedData = JSON.parse(data);
+          // Check if the dish already exists in this category
+          if (parsedData.menu?.[category]?.[value]) {
+            return false; // Validation fails - dish exists
+          }
+          return true; // Validation passes - dish doesn't exist
+        } catch (error) {
+          console.error('Error checking dish name:', error);
+          return true; // In case of error, allow submission
+        }
+      }
+    ),
   price: Yup.number()
     .typeError('Price must be a number')
     .positive('Price must be a positive number')
@@ -26,6 +53,7 @@ const AddDishSchema = Yup.object().shape({
     .required('Price is required'),
   category: Yup.string().required('Category is required'),
 });
+
 
 const AddDishScreen = ({
   route,
@@ -40,6 +68,8 @@ const AddDishScreen = ({
   const initialCategory = route.params.category || '';
 
   // const navigation = useNavigation();
+
+  
 
   useEffect(() => {
     const parent = navigation.getParent(); // Get Tab Navigator
@@ -79,18 +109,9 @@ const AddDishScreen = ({
 
   const handleFormSubmit = async (values: any) => {
     setIsSubmitting(true);
+    
     try {
-      const dishWithUser = {
-        ...values,
-        addedBy: user.email,
-      };
-
-      console.log('Adding dish:', dishWithUser);
-      await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate network delay
-
-      console.log('Dish added successfully');
-
-      // Navigate back or reset form
+      addNewDish(values.category, values.dishName, values.price);
       navigation.goBack();
     } catch (error) {
       console.error('Error adding dish:', error);
@@ -119,6 +140,7 @@ const AddDishScreen = ({
           <Formik
             initialValues={{dishName: '', price: '', category: initialCategory}}
             validationSchema={AddDishSchema}
+            validateOnBlur={true} 
             onSubmit={handleFormSubmit}>
             {({
               handleChange,
@@ -128,6 +150,7 @@ const AddDishScreen = ({
               errors,
               touched,
               isValid,
+              isValidating,
             }) => (
               <>
                 <View style={styles.inputGroup}>
@@ -208,9 +231,10 @@ const AddDishScreen = ({
                 <TouchableOpacity
                   style={[
                     styles.submitButton,
-                    (!isValid || isSubmitting) && styles.disabledButton,
+                    (!isValid || isSubmitting || isValidating) &&
+                      styles.disabledButton,
                   ]}
-                  disabled={!isValid || isSubmitting}
+                  disabled={!isValid || isSubmitting || isValidating}
                   onPress={() => handleSubmit()}>
                   {isSubmitting ? (
                     <Text style={styles.submitButtonText}>Adding Dish...</Text>

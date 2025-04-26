@@ -6,6 +6,7 @@ import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {View, StyleSheet} from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
+import SignUpScreen from './screens/SignUp';
 import LoginScreen from './screens/LoginScreen';
 import MenuScreen from './screens/MenuScreen';
 import ProfileScreen from './screens/ProfileScreen';
@@ -33,7 +34,6 @@ const Home = () => {
 };
 
 const Tabs = () => {
-
   return (
     <Tab.Navigator
       screenOptions={{
@@ -106,12 +106,13 @@ const App = () => {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <NavigationContainer>
-          <Stack.Navigator screenOptions={{headerShown: false}}>
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Home" component={Tabs} />
-          </Stack.Navigator>
-        </NavigationContainer>
+          <NavigationContainer>
+            <Stack.Navigator screenOptions={{headerShown: false}}>
+              <Stack.Screen name="Login" component={LoginScreen} />
+              <Stack.Screen name="Home" component={Tabs} />
+              <Stack.Screen name="SignUp" component={SignUpScreen} />
+            </Stack.Navigator>
+          </NavigationContainer>
       </ThemeProvider>
     </SafeAreaProvider>
   );

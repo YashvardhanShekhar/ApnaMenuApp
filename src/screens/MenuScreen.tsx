@@ -530,7 +530,7 @@ const MenuScreen: React.FC = () => {
 export default MenuScreen;
 
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: '#F8FAFC'},
+  container: {flex: 1, backgroundColor: '#f9f9f9'},
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',

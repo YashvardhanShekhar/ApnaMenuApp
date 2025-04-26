@@ -24,15 +24,41 @@ export const handleLogOut = async (navigation: any) => {
 
 export const handleSignIn = async (navigation: any) => {
 
+  const setUpData = async (email: string) => {
+    
+    const userRef = firestore().collection('users').doc(email);
+    const urlRes = await userRef.get();
+    const url = urlRes.data().url;
+    console.log('URL : ',url);
+    await AsyncStorage.setItem('url', url);
+    
+    const dataRes = await firestore().collection('restaurants').doc(url).get();
+    const data = dataRes.data();
+    console.log(data)
+    await AsyncStorage.setItem('data', JSON.stringify(data));
+    
+  }
+
   try {
     await GoogleSignin.hasPlayServices();
     const response = await GoogleSignin.signIn();
     const {idToken} = await GoogleSignin.getTokens();
     const credential = auth.GoogleAuthProvider.credential(idToken);
     await auth().signInWithCredential(credential);
+    
     await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
-    await firebase
-    navigation.replace('Home');
+    const email = response.data.user.email;
+    const userDoc = await firestore().collection('users').doc(email).get();
+
+    if (!userDoc.exists) {
+      console.log('User does not exist, creating new user...');
+      navigation.replace('SignUp');
+    }else{
+      console.log('User exists, navigating to Home...');
+      await setUpData(email)
+      navigation.replace('Home');
+    }
+
   } catch (error) {
     if ((error as any).code === statusCodes.SIGN_IN_CANCELLED) {
       Alert.alert('Sign-In Cancelled');
@@ -48,4 +74,3 @@ export const handleSignIn = async (navigation: any) => {
     }
   }
 };
-
