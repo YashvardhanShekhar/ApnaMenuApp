@@ -4,15 +4,6 @@ import firestore from '@react-native-firebase/firestore';
 import Snackbar from 'react-native-snackbar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const userExists = async (email: string) => {
-  const allUser = await firestore().collection('users').get();
-  allUser.forEach(user => {
-    if (user.data().email === email) {
-      return true;
-    }
-  });
-  return false;
-};
 
 export const addNewDish = async (
   category: string,
@@ -120,38 +111,6 @@ export const deleteDish = async (category: string, name: string) => {
   }
 };
 
-export const dishExists = async (
-  category: string,
-  name: string,
-): Promise<boolean> => {
-  const url = await AsyncStorage.getItem('url');
-  const restaurantDoc = await firestore()
-    .collection('restaurants')
-    .doc(url as string)
-    .get();
-
-  if (restaurantDoc.exists) {
-    const menu = restaurantDoc.data()?.menu;
-    return menu?.[category]?.[name] !== undefined;
-  }
-  return false;
-};
-
-export const categoryExists = async (category: string): Promise<boolean> => {
-  const url = await AsyncStorage.getItem('url');
-  const restaurantDoc = await firestore()
-    .collection('restaurants')
-    .doc(url as string)
-    .get();
-
-  if (restaurantDoc.exists) {
-    const menu = restaurantDoc.data()?.menu;
-    return menu?.[category] !== undefined;
-  }
-  return false;
-};
-
-
 export const setAvailability = async (category:string,dishName:string,status:boolean)=>{
   try {
     const url = await AsyncStorage.getItem('url');
@@ -190,3 +149,96 @@ export const setAvailability = async (category:string,dishName:string,status:boo
     });
   }
 }
+
+export const dishExists = async (
+  category: string,
+  name: string,
+): Promise<boolean> => {
+  const url = await AsyncStorage.getItem('url');
+  const restaurantDoc = await firestore()
+    .collection('restaurants')
+    .doc(url as string)
+    .get();
+
+  if (restaurantDoc.exists) {
+    const menu = restaurantDoc.data()?.menu;
+    return menu?.[category]?.[name] !== undefined;
+  }
+  return false;
+};
+
+export const categoryExists = async (category: string): Promise<boolean> => {
+  const url = await AsyncStorage.getItem('url');
+  const restaurantDoc = await firestore()
+    .collection('restaurants')
+    .doc(url as string)
+    .get();
+
+  if (restaurantDoc.exists) {
+    const menu = restaurantDoc.data()?.menu;
+    return menu?.[category] !== undefined;
+  }
+  return false;
+};
+
+export const restaurantUrlExists = async (url: string): Promise<boolean> => {
+  
+  const restaurantDoc = await firestore()
+    .collection('restaurants')
+    .doc(url as string)
+    .get();
+
+  if (restaurantDoc.exists) {
+    return true;
+  }
+  return false;
+};
+
+export const addNewRestaurant = async (
+  email: string,
+  restaurantName: string,
+  restaurantUrl: string,
+) => {
+  try {
+    const isExists = await restaurantUrlExists(restaurantUrl);
+    if(isExists){
+      throw new Error('URL already exists');
+    }
+    await addNewUser(email, restaurantUrl)
+    await firestore()
+      .collection('restaurants')
+      .doc(restaurantUrl as string)
+      .set({
+        name: restaurantName,
+        userLinked:{
+          email:email,
+        }
+      },{merge: true},
+      )
+      .then(() => {
+        Snackbar.show({
+          text: `Restaurant added successfully`,
+          duration: Snackbar.LENGTH_SHORT,
+          action: {
+            text: 'OK',
+            textColor: '#0F766E',
+          },
+        });
+      });
+  } catch (error: any) {
+    Snackbar.show({
+      text: error.message,
+      duration: Snackbar.LENGTH_SHORT,
+    });
+  }
+};
+
+export const addNewUser = async(email:string,restaurantUrl:string)=>{
+  await firestore()
+    .collection('users')
+    .doc(email as string)
+    .set({
+      url: restaurantUrl,
+    })
+}
+

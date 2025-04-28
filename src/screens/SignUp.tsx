@@ -10,11 +10,14 @@ import {
 import {Text, TextInput, Button} from 'react-native-paper';
 import {Formik} from 'formik';
 import * as Yup from 'yup';
-import firestore from '@react-native-firebase/firestore';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Snackbar from 'react-native-snackbar';
 import HapticFeedback from 'react-native-haptic-feedback';
 import {useNavigation} from '@react-navigation/native';
+import {
+  addNewRestaurant,
+  restaurantUrlExists,
+  addNewUser,
+} from '../components/databaseManager';
 
 const RegisterSchema = Yup.object().shape({
   restaurantName: Yup.string()
@@ -22,52 +25,37 @@ const RegisterSchema = Yup.object().shape({
     .required('Restaurant name is required'),
   restaurantUrl: Yup.string()
     .min(2, 'Too Short!')
-    .required('Restaurant URL is required'),
+    .required('Restaurant URL is required')
+    .test('unique-url', 'URL is already taken', async url => {
+      if (!url) return true;
+      const isExists = await restaurantUrlExists(url);
+      if (isExists) {
+        return false;
+      }
+      return true;
+    }),
 });
 
-const FirstTimeRegisterScreen = () => {
-  const navigation = useNavigation();
-
+const FirstTimeRegisterScreen = ({
+  route,
+  navigation,
+}: {
+  route: {params: any & {email:string}};
+  navigation: any;
+}) => {
+  // const navigation = useNavigation();
+  const email = route.params.email;
+  
   const handleRegister = async (values: {
     restaurantName: string;
     restaurantUrl: string;
   }) => {
-    try {
-      const {restaurantName, restaurantUrl} = values;
-      const user = await AsyncStorage.getItem('user');
-      const email = JSON.parse(user).email;
-      const ref = firestore().collection('restaurants').doc(restaurantUrl);
-
-      const rest = await ref.get();
-      if (rest.exists) {
-        throw new Error('Restaurant URL already exists');
-      }
-
-      await ref.set({name: restaurantName});
-      await firestore()
-        .collection('users')
-        .doc(email)
-        .set({url: restaurantUrl});
-
-      HapticFeedback.trigger('impactLight');
-
-      Snackbar.show({
-        text: 'Registration successful!',
-        duration: Snackbar.LENGTH_SHORT,
-      });
-
-      navigation.reset({
-        index: 0,
-        routes: [{name: 'Home'}],
-      });
-    } catch (error) {
-      console.error('Registration error:', error);
-      Snackbar.show({
-        text: error.message,
-        backgroundColor: 'white',
-        textColor: 'black',
-      });
-    }
+    const {restaurantName, restaurantUrl} = values;
+    await addNewRestaurant(email, restaurantName, restaurantUrl);
+    navigation.reset({
+      index: 0,
+      routes: [{name: 'Home'}],
+    });
   };
 
   return (
@@ -128,7 +116,7 @@ const FirstTimeRegisterScreen = () => {
 
               <Button
                 mode="contained"
-                onPress={handleSubmit}
+                onPress={() => handleSubmit()}
                 style={styles.button}
                 contentStyle={{paddingVertical: 8}}>
                 Log In

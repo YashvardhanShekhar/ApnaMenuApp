@@ -1,10 +1,12 @@
-import React, {PropsWithChildren} from 'react';
+import React, {PropsWithChildren, useEffect} from 'react';
 import {NavigationContainer} from '@react-navigation/native';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {View, StyleSheet} from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import BootSplash from 'react-native-bootsplash';
+
 
 import SignUpScreen from './screens/SignUp';
 import LoginScreen from './screens/LoginScreen';
@@ -13,6 +15,7 @@ import ProfileScreen from './screens/ProfileScreen';
 import AddDish from './screens/AddDish';
 import SettingsScreen from './screens/SettingsScreen';
 import {ThemeProvider} from './screens/ThemeContext';
+import SplashScreen from './screens/SplashScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -28,7 +31,7 @@ const Home = () => {
       initialRouteName="Menu"
       screenOptions={{headerShown: false}}>
       <Stack.Screen name="Menu" component={MenuScreen} />
-      <Stack.Screen name="AddDish" component={AddDish} />
+      <Stack.Screen name="AddDish" component={AddDish as React.ComponentType} />
     </Stack.Navigator>
   );
 };
@@ -103,16 +106,26 @@ const Tabs = () => {
 };
 
 const App = () => {
+  // somewhere in your App.tsx
+  useEffect(() => {
+    BootSplash.hide({fade: true}); // hide splash screen once app is ready
+  }, []);
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-          <NavigationContainer>
-            <Stack.Navigator screenOptions={{headerShown: false}}>
-              <Stack.Screen name="Login" component={LoginScreen} />
-              <Stack.Screen name="Home" component={Tabs} />
-              <Stack.Screen name="SignUp" component={SignUpScreen} />
-            </Stack.Navigator>
-          </NavigationContainer>
+        <NavigationContainer>
+          <Stack.Navigator
+            initialRouteName="Splash"
+            screenOptions={{headerShown: false}}>
+            <Stack.Screen name="Splash" component={SplashScreen} />
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Home" component={Tabs} />
+            <Stack.Screen
+              name="SignUp"
+              component={SignUpScreen as React.ComponentType}
+            />
+          </Stack.Navigator>
+        </NavigationContainer>
       </ThemeProvider>
     </SafeAreaProvider>
   );

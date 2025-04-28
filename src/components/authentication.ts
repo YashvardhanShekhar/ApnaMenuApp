@@ -24,24 +24,18 @@ export const handleLogOut = async (navigation: any) => {
 
 export const handleSignIn = async (navigation: any) => {
 
-  const setUpData = async (email: string) => {
+  const setUpData = async (url: string) => {
     
-    const userRef = firestore().collection('users').doc(email);
-    const urlRes = await userRef.get();
-    const url = urlRes.data().url;
     console.log('URL : ',url);
     await AsyncStorage.setItem('url', url);
     
     const dataRes = await firestore().collection('restaurants').doc(url).get();
-    const data = dataRes.data();
-    console.log(data.menu)
+    const data:Object = dataRes.data();
+    console.log(data)
     if(data.menu){
       await AsyncStorage.setItem('menu', JSON.stringify(data.menu));
-      navigation.replace('Home');
-    }else{
-      navigation.replace('SignUp');
     }
-    
+    navigation.replace('Home');
   }
 
   try {
@@ -55,13 +49,14 @@ export const handleSignIn = async (navigation: any) => {
     await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
     const email = response.data.user.email;
     const userDoc = await firestore().collection('users').doc(email).get();
-    console.log("----------------")
-    if (!userDoc.exists) {
-      console.log('User does not exist, creating new user...');
-      navigation.replace('SignUp');
-    }else{
+    const userData = userDoc.data()
+
+    if (userDoc.exists && userData.url ) {
       console.log('User exists, navigating to Home...');
-      await setUpData(email)
+      await setUpData(userData.url)
+    }else{
+      console.log('User does not exist, creating new user...');
+      navigation.replace('SignUp',{email});
     }
 
   } catch (error) {
@@ -75,7 +70,7 @@ export const handleSignIn = async (navigation: any) => {
       Alert.alert('Google Play Services not available');
     } else {
       console.error(error);
-      Alert.alert('An unexpected error occurred.');
+      Alert.alert(error.message);
     }
   }
 };
