@@ -16,17 +16,11 @@ import * as Animatable from 'react-native-animatable';
 import {Button, Portal, Dialog} from 'react-native-paper';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import Snackbar from 'react-native-snackbar';
-
-type MenuItem = {
-  id: number;
-  name: string;
-  price: number;
-  available: boolean;
-};
-
-type MenuItems = {
-  [category: string]: MenuItem[];
-};
+import {
+  addNewDish,
+  deleteDish,
+  setAvailability,
+} from '../components/databaseManager';
 
 type RouteParams = {
   updatedDish?: {
@@ -34,7 +28,7 @@ type RouteParams = {
     category: string;
     name: string;
     price: number;
-    available: boolean;
+    status: boolean;
   };
 };
 
@@ -47,10 +41,18 @@ type NavigationProps = {
       itemId: number;
       name: string;
       price: number;
-      available: boolean;
+      status: boolean;
     },
   ) => void;
 };
+
+interface MenuItem {
+  name: string;
+  price: number;
+  status: boolean;
+}
+
+type MenuItems = Record<string, Record<string, MenuItem>>;
 
 const MenuScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProps>();
@@ -65,10 +67,10 @@ const MenuScreen: React.FC = () => {
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{
     category: string;
-    item: MenuItem;
+    item: string;
   } | null>(null);
 
-  // State for add category dialog
+  // // State for add category dialog
   const [addCategoryModalVisible, setAddCategoryModalVisible] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [categoryError, setCategoryError] = useState('');
@@ -76,37 +78,21 @@ const MenuScreen: React.FC = () => {
   useEffect(() => {
     const fetchUser = async () => {
       const userData = await AsyncStorage.getItem('user');
-      if (userData) {
+      const res = await AsyncStorage.getItem('menu');
+      const menu = JSON.parse(res);
+      if (menu) {
+        console.log(menu);
+        setMenuItems(menu);
         setUser(JSON.parse(userData));
+      } else {
+        console.log('------     ------');
+        console.log(menuItems);
       }
     };
     fetchUser();
   }, []);
 
-  const [menuItems, setMenuItems] = useState<MenuItems>({
-    Snacks: [
-      {id: 1, name: 'French Fries', price: 149, available: true},
-      {id: 2, name: 'Onion Rings', price: 179, available: true},
-    ],
-    Beverages: [
-      {id: 3, name: 'Coke', price: 79, available: true},
-      {id: 4, name: 'Lemonade', price: 99, available: true},
-    ],
-    'Main Course': [
-      {id: 5, name: 'Cheeseburger', price: 349, available: true},
-      {id: 6, name: 'Chicken Sandwich', price: 299, available: true},
-      {
-        id: 7,
-        name: 'chicken dum murga special pulav biriyani',
-        price: 110,
-        available: true,
-      },
-    ],
-    Desserts: [
-      {id: 8, name: 'Ice Cream', price: 149, available: true},
-      {id: 9, name: 'Chocolate Cake', price: 199, available: true},
-    ],
-  });
+  const [menuItems, setMenuItems] = useState<MenuItems>({});
 
   // State to track which categories are expanded or collapsed
   const [expandedCategories, setExpandedCategories] = useState<{
@@ -122,151 +108,81 @@ const MenuScreen: React.FC = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => {
-    if (route.params?.updatedDish) {
-      const {id, category, name, price, available} = route.params.updatedDish;
-      setMenuItems(prev => ({
-        ...prev,
-        [category]: prev[category].map(item =>
-          item.id === id ? {...item, name, price, available} : item,
-        ),
-      }));
-    }
-  }, [route.params?.updatedDish]);
+  // useEffect(() => {
+  //   if (route.params?.updatedDish) {
+  //     const {id, category, name, price, status} = route.params.updatedDish;
+  //     setMenuItems(prev => ({
+  //       ...prev,
+  //       [category]: prev[category].map(item =>
+  //         item.id === id ? {...item, name, price, status} : item,
+  //       ),
+  //     }));
+  //   }
+  // }, [route.params?.updatedDish]);
 
-  const icons = {
-    Snacks: '🍟',
-    Beverages: '🥤',
-    'Main Course': '🍔',
-    Desserts: '🍰',
+  const addDishInMenu = async (
+    category: string,
+    dishName: string,
+    price: number,
+  ) => {
+    setMenuItems(() => {
+      const prev = {...menuItems};
+      if (!prev[category]) {
+        prev[category] = {};
+      }
+      prev[category][dishName] = {
+        name: dishName,
+        price: price,
+        status: true,
+      };
+      return prev;
+    });
+    await AsyncStorage.setItem('menu', JSON.stringify(menuItems));
   };
 
   const handleAddDish = (category: string) => {
     navigation.navigate('AddDish', {
       category,
+      addDishInMenu,
       isNewDish: true,
       itemId: Date.now(),
-      name: '',
       price: 0,
-      available: true,
+      status: true,
+      name: '',
     });
   };
 
-  const handleAddCategory = () => {
-    // Show the add category dialog
-    setNewCategoryName('');
-    setCategoryError('');
-    setAddCategoryModalVisible(true);
-  };
-
-  const handleAddCategoryConfirm = () => {
-    const trimmedName = newCategoryName.trim();
-
-    if (!trimmedName) {
-      setCategoryError('Category name cannot be empty');
-      return;
-    }
-
-    // Check if category already exists
-    if (Object.keys(menuItems).includes(trimmedName)) {
-      setCategoryError('Category already exists');
-      return;
-    }
-
-    // Add the new category
-    const updatedMenuItems = {
-      ...menuItems,
-      [trimmedName]: [],
-    };
-
-    setMenuItems(updatedMenuItems);
-
-    // Set the new category as expanded by default
-    setExpandedCategories(prev => ({
-      ...prev,
-      [trimmedName]: true,
-    }));
-
-    // Hide modal
-    setAddCategoryModalVisible(false);
-
-    // Show confirmation snackbar with undo
-    Snackbar.show({
-      text: `${trimmedName} category added successfully`,
-      duration: Snackbar.LENGTH_SHORT,
-      action: {
-        text: 'UNDO',
-        textColor: '#0F766E',
-        onPress: () => {
-          // Remove the category
-          const {[trimmedName]: _, ...rest} = updatedMenuItems;
-          setMenuItems(rest);
-
-          // Remove from expanded categories
-          const {[trimmedName]: __, ...expandedRest} = expandedCategories;
-          setExpandedCategories(expandedRest);
-        },
-      },
-    });
-  };
-
-  const handleEditItem = (category: string, item: MenuItem) => {
-    navigation.navigate('EditDish', {
-      category,
-      itemId: item.id,
-      name: item.name,
-      price: item.price,
-      available: item.available,
-    } as any);
-  };
-
-  // Handle long press to delete
-  const handleLongPress = (category: string, item: MenuItem) => {
-    // Trigger haptic feedback
+  const handleLongPress = (category: string, item: string) => {
     ReactNativeHapticFeedback.trigger('impactMedium', {
       enableVibrateFallback: true,
     });
-
-    // Set the item to delete and show modal
     setItemToDelete({category, item});
     setDeleteModalVisible(true);
   };
 
-  // Handle delete confirm
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (itemToDelete) {
       const {category, item} = itemToDelete;
 
-      // Remove the item from the category
-      setMenuItems(prev => ({
-        ...prev,
-        [category]: prev[category].filter(i => i.id !== item.id),
-      }));
+      await deleteDish(category, item);
 
-      // Hide modal
+      setMenuItems(prevMenuItems => {
+        const updatedMenu = {...prevMenuItems};
+        delete updatedMenu[category][item];
+
+        if (Object.keys(updatedMenu[category]).length === 0) {
+          delete updatedMenu[category];
+        }
+        return updatedMenu;
+      });
+
+      await AsyncStorage.setItem('menu', JSON.stringify(menuItems));
+
       setDeleteModalVisible(false);
       setItemToDelete(null);
-
-      // Show confirmation snackbar
-      Snackbar.show({
-        text: `${item.name} deleted successfully`,
-        duration: Snackbar.LENGTH_SHORT,
-        action: {
-          text: 'UNDO',
-          textColor: '#0F766E',
-          onPress: () => {
-            // Restore the deleted item
-            setMenuItems(prev => ({
-              ...prev,
-              [category]: [...prev[category], item].sort((a, b) => a.id - b.id),
-            }));
-          },
-        },
-      });
     }
   };
 
-  // Toggle category expansion
   const toggleCategory = (category: string) => {
     setExpandedCategories(prev => ({
       ...prev,
@@ -274,17 +190,24 @@ const MenuScreen: React.FC = () => {
     }));
   };
 
-  // Filter items based on search query across all categories
   const getFilteredItems = () => {
+    if (!searchQuery) return menuItems;
+
     const result: MenuItems = {};
 
-    Object.entries(menuItems).forEach(([category, items]) => {
-      const filteredCategoryItems = items.filter(item =>
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()),
-      );
+    Object.keys(menuItems).forEach(category => {
+      const filteredItems: Record<string, MenuItem> = {};
 
-      if (filteredCategoryItems.length > 0) {
-        result[category] = filteredCategoryItems;
+      Object.keys(menuItems[category]).forEach(dishKey => {
+        const dish = menuItems[category][dishKey];
+        if (dish.name.toLowerCase().includes(searchQuery.toLowerCase())) {
+          filteredItems[dishKey] = dish;
+        }
+      });
+
+      // Only add the category if it has matching items
+      if (Object.keys(filteredItems).length > 0) {
+        result[category] = filteredItems;
       }
     });
 
@@ -293,8 +216,19 @@ const MenuScreen: React.FC = () => {
 
   const filteredMenuItems = searchQuery ? getFilteredItems() : menuItems;
 
-  // Check if any modal is visible to update status bar
   const isAnyModalVisible = deleteModalVisible || addCategoryModalVisible;
+
+  const toggleAvailability = async (category: string, name: string) => {
+    const tempMenu = {...menuItems};
+    setAvailability(category, name, !menuItems[category][name].status);
+    console.log('--------------');
+    tempMenu[category][name].status = !menuItems[category][name].status;
+    setMenuItems(tempMenu);
+    await AsyncStorage.setItem('menu', JSON.stringify(menuItems));
+    ReactNativeHapticFeedback.trigger('impactLight', {
+      enableVibrateFallback: true,
+    });
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -304,7 +238,7 @@ const MenuScreen: React.FC = () => {
           barStyle="dark-content"
         />
       ) : (
-        <StatusBar backgroundColor="#F8FAFC" barStyle="dark-content" />
+        <StatusBar backgroundColor="#fff" barStyle="dark-content" />
       )}
       <ScrollView keyboardShouldPersistTaps="handled">
         {/* Header */}
@@ -336,18 +270,17 @@ const MenuScreen: React.FC = () => {
           )}
         </View>
 
-        {/* Categories with dropdown functionality */}
         <View style={styles.categoriesContainer}>
-          {Object.entries(filteredMenuItems).map(([category, items]) => (
+          {Object.keys(filteredMenuItems).map(category => (
             <View key={category} style={styles.categorySection}>
-              {/* Category Header with dropdown toggle */}
               <TouchableOpacity
+                activeOpacity={0.5}
                 style={styles.categoryHeader}
                 onPress={() => toggleCategory(category)}>
                 <View style={styles.categoryTitleContainer}>
-                  <Text style={styles.categoryIcon}>
+                  {/* <Text style={styles.categoryIcon}>
                     {icons[category as keyof typeof icons] || '📋'}
-                  </Text>
+                  </Text> */}
                   <Text style={styles.categoryTitle}>{category}</Text>
                 </View>
                 <View style={styles.categoryHeaderRight}>
@@ -369,49 +302,50 @@ const MenuScreen: React.FC = () => {
                 </View>
               </TouchableOpacity>
 
-              {/* Category Items */}
               {expandedCategories[category] && (
                 <View style={styles.itemsContainer}>
-                  {items.map(item => (
+                  {Object.keys(filteredMenuItems[category]).map(item => (
                     <Animatable.View
-                      key={item.id}
+                      key={item}
                       animation="fadeIn"
                       duration={400}>
                       <TouchableOpacity
+                        activeOpacity={0.8}
                         style={styles.card}
                         onLongPress={() => handleLongPress(category, item)}
-                        onPress={() => handleEditItem(category, item)}
                         delayLongPress={300}>
                         <View style={{flex: 1}}>
-                          <Text style={styles.foodName}>{item.name}</Text>
-                          <Text style={styles.foodPrice}>₹{item.price}</Text>
+                          <Text style={styles.foodName}>
+                            {filteredMenuItems[category][item].name}
+                          </Text>
+                          <Text style={styles.foodPrice}>
+                            ₹{filteredMenuItems[category][item].price}
+                          </Text>
                         </View>
 
                         <TouchableOpacity
                           style={[
                             styles.availabilityButton,
                             {
-                              backgroundColor: item.available
+                              backgroundColor: filteredMenuItems[category][item]
+                                .status
                                 ? '#D1FAE5'
                                 : '#FEE2E2',
                             },
                           ]}
                           onPress={() => {
-                            setMenuItems(prev => ({
-                              ...prev,
-                              [category]: prev[category].map(i =>
-                                i.id === item.id
-                                  ? {...i, available: !i.available}
-                                  : i,
-                              ),
-                            }));
+                            toggleAvailability(category, item);
                           }}>
                           <Text
                             style={{
-                              color: item.available ? '#047857' : '#DC2626',
+                              color: filteredMenuItems[category][item].status
+                                ? '#047857'
+                                : '#DC2626',
                               fontWeight: '600',
                             }}>
-                            {item.available ? 'Available' : 'Sold Out'}
+                            {filteredMenuItems[category][item].status
+                              ? 'Available'
+                              : 'Sold Out'}
                           </Text>
                         </TouchableOpacity>
                       </TouchableOpacity>
@@ -421,17 +355,34 @@ const MenuScreen: React.FC = () => {
               )}
             </View>
           ))}
+          <View style={styles.categorySection}>
+            <TouchableOpacity activeOpacity={0.5} style={styles.categoryHeader}>
+              <View style={styles.categoryTitleContainer}>
+                {/* <Text style={styles.categoryIcon}>
+                    {icons[category as keyof typeof icons] || '📋'}
+                  </Text> */}
+                <Text style={styles.categoryTitle}>Add New Dish Category</Text>
+              </View>
+              <View style={styles.categoryHeaderRight}>
+                <TouchableOpacity
+                  style={styles.addDishSmallButton}
+                  onPress={() => handleAddDish(null)}>
+                  <Icon name="plus-circle" size={20} color="#0F766E" />
+                </TouchableOpacity>
+                {/* <Icon
+                  name={
+                    expandedCategories[category] ? 'chevron-up' : 'chevron-down'
+                  }
+                  size={24}
+                  color="#0F172A"
+                  style={{marginLeft: 10}}
+                /> */}
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
 
-      {/* Floating Add Category Button */}
-      <TouchableOpacity
-        style={styles.addCategoryButton}
-        onPress={handleAddCategory}>
-        <Icon name="folder-plus" size={28} color="#fff" />
-      </TouchableOpacity>
-
-      {/* Delete Confirmation Dialog */}
       <Portal>
         <Dialog
           visible={deleteModalVisible}
@@ -441,10 +392,7 @@ const MenuScreen: React.FC = () => {
           <Dialog.Content>
             <Text style={styles.dialogContent}>
               Are you sure you want to delete{' '}
-              <Text style={{fontWeight: '700'}}>
-                {itemToDelete?.item?.name}
-              </Text>
-              ?
+              <Text style={{fontWeight: '700'}}>{itemToDelete?.item}</Text>?
             </Text>
           </Dialog.Content>
           <Dialog.Actions style={styles.dialogActions}>
@@ -508,7 +456,8 @@ const MenuScreen: React.FC = () => {
               buttonColor="#0F766E"
               textColor="#fff"
               disabled={!newCategoryName.trim()}
-              onPress={handleAddCategoryConfirm}>
+              // onPress={handleAddCategoryConfirm}
+            >
               Add
             </Button>
           </Dialog.Actions>
@@ -530,7 +479,7 @@ const MenuScreen: React.FC = () => {
 export default MenuScreen;
 
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: '#f9f9f9'},
+  container: {flex: 1, backgroundColor: '#fff'},
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -561,6 +510,7 @@ const styles = StyleSheet.create({
   categoriesContainer: {
     marginHorizontal: 20,
     marginTop: 10,
+    paddingBottom: 60,
   },
   categorySection: {
     marginBottom: 20,

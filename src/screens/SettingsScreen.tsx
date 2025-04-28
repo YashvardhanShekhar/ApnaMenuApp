@@ -6,7 +6,7 @@ import {useNavigation} from '@react-navigation/native';
 import {handleLogOut} from '../components/authentication';
 
 import firestore, { average } from '@react-native-firebase/firestore';
-import {addNewDish, addCategory, addFirstDish} from '../components/databaseManager';
+import {addNewDish, addCategory, deleteDish} from '../components/databaseManager';
 
 const SettingsScreen = () => {
   const {theme, toggleTheme} = useTheme();
@@ -14,7 +14,7 @@ const SettingsScreen = () => {
   const navigation = useNavigation();
   
   const pressed = async() => {
-     await addNewDish('pappu','soda drink',50);
+     await deleteDish('Beverages', 'Heel');
   }
 
   return (

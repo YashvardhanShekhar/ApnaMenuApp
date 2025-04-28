@@ -16,7 +16,7 @@ import {Formik} from 'formik';
 import * as Yup from 'yup';
 import {userProps} from '../App'; // Import userProps from App.tsx
 import { useNavigation } from '@react-navigation/native';
-import { addNewDish } from '../components/databaseManager';
+import { addNewDish, categoryExists, dishExists } from '../components/databaseManager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Transform your schema to use async validation
@@ -26,32 +26,30 @@ const AddDishSchema = Yup.object().shape({
     .test(
       'unique-dish-name',
       'Dish name already exists in this category',
-      async function(value) {
-        if (!value) return true; // Skip validation if empty (it's handled by required)
-        
+      async function (dishName) {
+        if (!dishName) return true;
         try {
           const category = this.parent.category;
-          const data = await AsyncStorage.getItem('data');
-          if (!data) return true;
-          
-          const parsedData = JSON.parse(data);
-          // Check if the dish already exists in this category
-          if (parsedData.menu?.[category]?.[value]) {
-            return false; // Validation fails - dish exists
+          const data = await AsyncStorage.getItem('menu');
+          if(!data) return true;
+          const menu = JSON.parse(data);
+          if (menu[category] && menu[category][dishName] ) {
+            return false;
           }
-          return true; // Validation passes - dish doesn't exist
+          return true;
         } catch (error) {
           console.error('Error checking dish name:', error);
-          return true; // In case of error, allow submission
+          return false;
         }
-      }
+      },
     ),
   price: Yup.number()
     .typeError('Price must be a number')
     .positive('Price must be a positive number')
     .integer('Price must be an integer')
     .required('Price is required'),
-  category: Yup.string().required('Category is required'),
+  category: Yup.string()
+    .required('Category is required')
 });
 
 
@@ -59,17 +57,16 @@ const AddDishScreen = ({
   route,
   navigation,
 }: {
-  route: {params: userProps & {category: string}};
+  route: {params: userProps & {category: string, addDishInMenu:Function}};
   navigation: any;
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const dishNameInputRef = useRef<any>(null);
   const user = route.params;
-  const initialCategory = route.params.category || '';
-
-  // const navigation = useNavigation();
-
+  const initialCategory = route.params.category;
+  const addDishInMenu = route.params.addDishInMenu;
   
+  const isNewCategory = initialCategory === null ? true : false;
 
   useEffect(() => {
     const parent = navigation.getParent(); // Get Tab Navigator
@@ -98,20 +95,21 @@ const AddDishScreen = ({
     };
   }, [navigation]);
 
-  useEffect(() => {
-    // Focus on the dish name input when the component mounts
-    setTimeout(() => {
-      if (dishNameInputRef.current) {
-        dishNameInputRef.current.focus();
-      }
-    }, 100);
-  }, []);
+  // useEffect(() => {
+  //   // Focus on the dish name input when the component mounts
+  //   setTimeout(() => {
+  //     if (dishNameInputRef.current) {
+  //       dishNameInputRef.current.focus();
+  //     }
+  //   }, 100);
+  // }, []);
 
   const handleFormSubmit = async (values: any) => {
     setIsSubmitting(true);
     
     try {
       addNewDish(values.category, values.dishName, values.price);
+      addDishInMenu(values.category, values.dishName, values.price);
       navigation.goBack();
     } catch (error) {
       console.error('Error adding dish:', error);
@@ -140,7 +138,7 @@ const AddDishScreen = ({
           <Formik
             initialValues={{dishName: '', price: '', category: initialCategory}}
             validationSchema={AddDishSchema}
-            validateOnBlur={true} 
+            validateOnBlur={true}
             onSubmit={handleFormSubmit}>
             {({
               handleChange,
@@ -159,7 +157,9 @@ const AddDishScreen = ({
                     mode="outlined"
                     style={styles.input}
                     value={values.category}
-                    disabled={true}
+                    disabled={!isNewCategory}
+                    onChangeText={handleChange('category')}
+                    onBlur={handleBlur('category')}
                     error={!!(touched.category && errors.category)}
                     outlineStyle={styles.inputOutline}
                     theme={{colors: {primary: '#0F766E', text: '#0F172A'}}}

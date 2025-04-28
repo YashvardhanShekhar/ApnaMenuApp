@@ -1,0 +1,192 @@
+import {View, Text} from 'react-native';
+import React from 'react';
+import firestore from '@react-native-firebase/firestore';
+import Snackbar from 'react-native-snackbar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+export const userExists = async (email: string) => {
+  const allUser = await firestore().collection('users').get();
+  allUser.forEach(user => {
+    if (user.data().email === email) {
+      return true;
+    }
+  });
+  return false;
+};
+
+export const addNewDish = async (
+  category: string,
+  name: string,
+  price: number,
+) => {
+  try {
+    const status = await dishExists(category,name);
+    if(status){
+      throw new Error('Dish already exists');
+    }
+    const url = await AsyncStorage.getItem('url');
+    const dishData = {
+      name: name,
+      price: price,
+      status: true,
+    };
+
+    await firestore()
+      .collection('restaurants')
+      .doc(url as string)
+      .set(
+        {
+          menu: {
+            [category]: {
+              [name]: dishData,
+            },
+          },
+        },
+        {merge: true},
+      )
+      .then(() => {
+        Snackbar.show({
+          text: name + ' added successfully',
+          duration: Snackbar.LENGTH_SHORT,
+          action: {
+            text: 'OK',
+            textColor: '#0F766E',
+          },
+        });
+      });
+  } catch (error:any) {
+    Snackbar.show({
+      text: error.message,
+      duration: Snackbar.LENGTH_SHORT,
+    });
+  }
+};
+
+export const deleteDish = async (category: string, name: string) => {
+  const url = await AsyncStorage.getItem('url');
+  const path = 'menu.' + category + '.' + name;
+  console.log(path);
+  await firestore()
+    .collection('restaurants')
+    .doc(url as string)
+    .update({
+      [path]: firestore.FieldValue.delete(), // Deleting the nested field
+    })
+    .then(() => {
+      Snackbar.show({
+        text: name + ' deleted successfully',
+        duration: Snackbar.LENGTH_SHORT,
+        action: {
+          text: 'OK',
+          textColor: '#0F766E',
+        },
+      });
+    })
+    .catch(error => {
+      Snackbar.show({
+        text: error.message,
+        duration: Snackbar.LENGTH_SHORT,
+      });
+    });
+  
+  const res = await firestore()
+    .collection('restaurants')
+    .doc(url as string).get()
+  const data = res.data()
+  const size = Object.keys(data?.menu?.[category] || {}).length;
+  if (size === 0) {
+    await firestore()
+      .collection('restaurants')
+      .doc(url as string)
+      .update({
+        [`menu.${category}`]: firestore.FieldValue.delete(),
+      })
+      .then(() => {
+        Snackbar.show({
+          text: category + ' was empty and has been deleted',
+          duration: Snackbar.LENGTH_SHORT,
+          action: {
+            text: 'OK',
+            textColor: '#0F766E',
+          },
+        });
+      })
+      .catch(error => {
+        Snackbar.show({
+          text: error.message,
+          duration: Snackbar.LENGTH_SHORT,
+        });
+      });
+  }
+};
+
+export const dishExists = async (
+  category: string,
+  name: string,
+): Promise<boolean> => {
+  const url = await AsyncStorage.getItem('url');
+  const restaurantDoc = await firestore()
+    .collection('restaurants')
+    .doc(url as string)
+    .get();
+
+  if (restaurantDoc.exists) {
+    const menu = restaurantDoc.data()?.menu;
+    return menu?.[category]?.[name] !== undefined;
+  }
+  return false;
+};
+
+export const categoryExists = async (category: string): Promise<boolean> => {
+  const url = await AsyncStorage.getItem('url');
+  const restaurantDoc = await firestore()
+    .collection('restaurants')
+    .doc(url as string)
+    .get();
+
+  if (restaurantDoc.exists) {
+    const menu = restaurantDoc.data()?.menu;
+    return menu?.[category] !== undefined;
+  }
+  return false;
+};
+
+
+export const setAvailability = async (category:string,dishName:string,status:boolean)=>{
+  try {
+    const url = await AsyncStorage.getItem('url');
+    const path = `menu.${category}.${dishName}.status`
+    await firestore()
+      .collection('restaurants')
+      .doc(url as string)
+      .set(
+        {
+          menu: {
+            [category]: {
+              [dishName]: {
+                status:status
+              },
+            },
+          },
+        },
+        {merge: true},
+      )
+      .then(() => {
+        Snackbar.show({
+          text: status
+            ? dishName + ' is now available'
+            : dishName + ' is now sold out',
+          duration: Snackbar.LENGTH_SHORT,
+          action: {
+            text: 'OK',
+            textColor: '#0F766E',
+          },
+        });
+      });
+  } catch (error: any) {
+    Snackbar.show({
+      text: error.message,
+      duration: Snackbar.LENGTH_SHORT,
+    });
+  }
+}
