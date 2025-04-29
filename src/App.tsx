@@ -5,7 +5,7 @@ import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {View, StyleSheet} from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import BootSplash from 'react-native-bootsplash';
+import {createNavigationContainerRef} from '@react-navigation/native';
 
 
 import SignUpScreen from './screens/SignUp';
@@ -16,9 +16,11 @@ import AddDish from './screens/AddDish';
 import SettingsScreen from './screens/SettingsScreen';
 import {ThemeProvider} from './screens/ThemeContext';
 import SplashScreen from './screens/SplashScreen';
+import { prepareApp } from './components/prepareApp';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
+export const navigation = createNavigationContainerRef();
 
 export type userProps = PropsWithChildren<{
   name: string;
@@ -106,20 +108,18 @@ const Tabs = () => {
 };
 
 const App = () => {
-  // somewhere in your App.tsx
   useEffect(() => {
-    BootSplash.hide({fade: true}); // hide splash screen once app is ready
+    prepareApp();
   }, []);
+
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <NavigationContainer>
-          <Stack.Navigator
-            initialRouteName="Splash"
-            screenOptions={{headerShown: false}}>
-            <Stack.Screen name="Splash" component={SplashScreen} />
-            <Stack.Screen name="Login" component={LoginScreen} />
+        <NavigationContainer ref={navigation}>
+          <Stack.Navigator screenOptions={{headerShown: false}}>
             <Stack.Screen name="Home" component={Tabs} />
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Splash" component={SplashScreen} />
             <Stack.Screen
               name="SignUp"
               component={SignUpScreen as React.ComponentType}

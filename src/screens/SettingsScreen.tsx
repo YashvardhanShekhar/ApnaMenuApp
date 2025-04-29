@@ -70,7 +70,7 @@ const SettingsScreen = () => {
         style={styles.item}
         onPress={() => handleLogOut(navigation)}>
         <Ionicons name="log-out-outline" size={22} color="#ff4444" />
-        <Text style={[styles.label, {color: '#ff4444'}]}>Logout</Text>
+        <Text style={[styles.label, {color: '#ff4444'}]}>Logout and Exit</Text>
       </TouchableOpacity>
     </View>
   );

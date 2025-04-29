@@ -62,6 +62,8 @@ const AddDishScreen = ({
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const dishNameInputRef = useRef<any>(null);
+  const categoryNameInputRef = useRef<any>(null);
+
   const user = route.params;
   const initialCategory = route.params.category;
   const addDishInMenu = route.params.addDishInMenu;
@@ -95,14 +97,18 @@ const AddDishScreen = ({
     };
   }, [navigation]);
 
-  // useEffect(() => {
-  //   // Focus on the dish name input when the component mounts
-  //   setTimeout(() => {
-  //     if (dishNameInputRef.current) {
-  //       dishNameInputRef.current.focus();
-  //     }
-  //   }, 100);
-  // }, []);
+  useEffect(() => {
+    // Focus on the dish name input when the component mounts
+    setTimeout(() => {
+      if (dishNameInputRef.current) {
+        if(isNewCategory){
+          categoryNameInputRef.current.focus();
+        }else{
+          dishNameInputRef.current.focus();
+        }
+      }
+    }, 100);
+  }, []);
 
   const handleFormSubmit = async (values: any) => {
     setIsSubmitting(true);
@@ -161,6 +167,7 @@ const AddDishScreen = ({
                     onChangeText={handleChange('category')}
                     onBlur={handleBlur('category')}
                     error={!!(touched.category && errors.category)}
+                    ref={categoryNameInputRef}
                     outlineStyle={styles.inputOutline}
                     theme={{colors: {primary: '#0F766E', text: '#0F172A'}}}
                     left={<TextInput.Icon icon="tag-outline" color="#64748B" />}

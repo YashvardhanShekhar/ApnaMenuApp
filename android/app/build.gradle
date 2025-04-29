@@ -86,14 +86,6 @@ android {
         versionName "1.0"
     }
     signingConfigs {
-        release {
-            if (project.hasProperty('MYAPP_UPLOAD_STORE_FILE')) {
-                storeFile file(MYAPP_UPLOAD_STORE_FILE)
-                storePassword MYAPP_UPLOAD_STORE_PASSWORD
-                keyAlias MYAPP_UPLOAD_KEY_ALIAS
-                keyPassword MYAPP_UPLOAD_KEY_PASSWORD
-            }
-        }
         debug {
             storeFile file('debug.keystore')
             storePassword 'android'
@@ -124,14 +116,7 @@ dependencies {
     } else {
         implementation jscFlavor
     }
-
-    // Import the Firebase BoM
-    implementation(platform("com.google.firebase:firebase-bom:33.12.0"))
-
-    // Add Firebase Analytics dependency
-    implementation("com.google.firebase:firebase-analytics")
-
-    // Add other Firebase dependencies as needed
+    implementation project(':react-native-exit-app') // Add this line
 }
 
 apply plugin: 'com.android.application'

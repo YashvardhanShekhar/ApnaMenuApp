@@ -21,6 +21,9 @@ export const addNewDish = async (
       price: price,
       status: true,
     };
+    if(!url){
+      throw new Error("URL not found in Storage")
+    }
 
     await firestore()
       .collection('restaurants')
@@ -242,3 +245,22 @@ export const addNewUser = async(email:string,restaurantUrl:string)=>{
     })
 }
 
+export const fetchAllData = async(url:string) => {
+  try {
+    const restaurantDoc = await firestore()
+      .collection('restaurants')
+      .doc(url)
+      .get();
+
+    if (restaurantDoc.exists) {
+      return restaurantDoc.data();
+    }
+    throw new Error('Restaurant not found');
+  } catch (error: any) {
+    Snackbar.show({
+      text: error.message,
+      duration: Snackbar.LENGTH_SHORT,
+    });
+    return null;
+  }
+}

@@ -1,5 +1,6 @@
 package com.apnamenu
 
+import com.github.wumke.RNExitApp.RNExitAppPackage;
 import com.mkuczera.RNReactNativeHapticFeedbackPackage;
 import android.app.Application
 import com.facebook.react.PackageList
@@ -21,6 +22,7 @@ class MainApplication : Application(), ReactApplication {
             PackageList(this).packages.apply {
               // Packages that cannot be autolinked yet can be added manually here, for example:
               // add(MyReactNativePackage())
+              add(RNExitAppPackage()) // Add RNExitAppPackage here
             }
 
         override fun getJSMainModuleName(): String = "index"

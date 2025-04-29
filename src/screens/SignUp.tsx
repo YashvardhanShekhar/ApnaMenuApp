@@ -18,6 +18,7 @@ import {
   restaurantUrlExists,
   addNewUser,
 } from '../components/databaseManager';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const RegisterSchema = Yup.object().shape({
   restaurantName: Yup.string()
@@ -52,6 +53,7 @@ const FirstTimeRegisterScreen = ({
   }) => {
     const {restaurantName, restaurantUrl} = values;
     await addNewRestaurant(email, restaurantName, restaurantUrl);
+    await AsyncStorage.setItem('url', restaurantUrl);
     navigation.reset({
       index: 0,
       routes: [{name: 'Home'}],

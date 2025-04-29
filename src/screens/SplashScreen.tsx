@@ -7,20 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const SplashScreen = ({navigation}) => {
   // const navigation = useNavigation()
 
-  const fetchData = async () => {
-    const userRes = await AsyncStorage.getItem('user');
-    const url = await AsyncStorage.getItem('url')
-    if(!userRes || !url){
-      navigate.replace('Login');
-    }
-    
-    const menuRes = await AsyncStorage.getItem('menu');
-    const menu = JSON.parse(menuRes)
-    if(menu){
-      navigate.replace('Home');
-    }
-    
-  }
+  
 
   useEffect(() => {
     setTimeout(() => {

@@ -11,12 +11,6 @@ import {
   Easing,
   Dimensions,
 } from 'react-native';
-import {
-  GoogleSignin,
-  statusCodes,
-} from '@react-native-google-signin/google-signin';
-import auth from '@react-native-firebase/auth';
-import {GOOGLE_WEB_CLIENT_ID} from '@env';
 import {useNavigation, StackActions} from '@react-navigation/native';
 import Feather from 'react-native-vector-icons/Feather';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';

@@ -13,7 +13,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const ProfileScreen = () => {
   const [profileCompletion, setProfileCompletion] = useState(65); // Example profile completion percentage
-  const [profilePhotoUri, setProfilePhotoUri] = useState<string>(
+  const [user, setUser] = useState<string>(
     'https://fiverr-res.cloudinary.com/images/q_auto,f_auto/gigs/129638459/original/a2f7a0cf96e7e8c491b3f1ac4fa7a1588a8273b7/draw-your-profile-picture-with-minimalist-cartoon-style.jpg',
   );
 
@@ -23,7 +23,7 @@ const ProfileScreen = () => {
         const userData = await AsyncStorage.getItem('user');
         if (userData) {
           const user = JSON.parse(userData);
-          setProfilePhotoUri(user.photo);
+          setUser(user);
         }
       } catch (error) {
         console.error('Error fetching profile photo:', error);
@@ -43,10 +43,10 @@ const ProfileScreen = () => {
               // source={require('../assets/icon.png')}
               style={styles.profileImage}
               // If you don't have a local image, use a placeholder:
-              source={{ uri: profilePhotoUri }}
+              source={{ uri: user.photo }}
             />
           </View>
-          <Text style={styles.restaurantName}>Spice Garden</Text>
+          <Text style={styles.restaurantName}>{user.name}</Text>
           <Text style={styles.restaurantType}>Authentic Indian Cuisine</Text>
         </View>
 
