@@ -4,15 +4,14 @@ import firestore from '@react-native-firebase/firestore';
 import Snackbar from 'react-native-snackbar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-
 export const addNewDish = async (
   category: string,
   name: string,
   price: number,
 ) => {
   try {
-    const status = await dishExists(category,name);
-    if(status){
+    const status = await dishExists(category, name);
+    if (status) {
       throw new Error('Dish already exists');
     }
     const url = await AsyncStorage.getItem('url');
@@ -21,8 +20,8 @@ export const addNewDish = async (
       price: price,
       status: true,
     };
-    if(!url){
-      throw new Error("URL not found in Storage")
+    if (!url) {
+      throw new Error('URL not found in Storage');
     }
 
     await firestore()
@@ -48,7 +47,7 @@ export const addNewDish = async (
           },
         });
       });
-  } catch (error:any) {
+  } catch (error: any) {
     Snackbar.show({
       text: error.message,
       duration: Snackbar.LENGTH_SHORT,
@@ -82,11 +81,12 @@ export const deleteDish = async (category: string, name: string) => {
         duration: Snackbar.LENGTH_SHORT,
       });
     });
-  
+
   const res = await firestore()
     .collection('restaurants')
-    .doc(url as string).get()
-  const data = res.data()
+    .doc(url as string)
+    .get();
+  const data = res.data();
   const size = Object.keys(data?.menu?.[category] || {}).length;
   if (size === 0) {
     await firestore()
@@ -114,10 +114,14 @@ export const deleteDish = async (category: string, name: string) => {
   }
 };
 
-export const setAvailability = async (category:string,dishName:string,status:boolean)=>{
+export const setAvailability = async (
+  category: string,
+  dishName: string,
+  status: boolean,
+) => {
   try {
     const url = await AsyncStorage.getItem('url');
-    const path = `menu.${category}.${dishName}.status`
+    const path = `menu.${category}.${dishName}.status`;
     await firestore()
       .collection('restaurants')
       .doc(url as string)
@@ -126,7 +130,7 @@ export const setAvailability = async (category:string,dishName:string,status:boo
           menu: {
             [category]: {
               [dishName]: {
-                status:status
+                status: status,
               },
             },
           },
@@ -151,7 +155,7 @@ export const setAvailability = async (category:string,dishName:string,status:boo
       duration: Snackbar.LENGTH_SHORT,
     });
   }
-}
+};
 
 export const dishExists = async (
   category: string,
@@ -185,7 +189,6 @@ export const categoryExists = async (category: string): Promise<boolean> => {
 };
 
 export const restaurantUrlExists = async (url: string): Promise<boolean> => {
-  
   const restaurantDoc = await firestore()
     .collection('restaurants')
     .doc(url as string)
@@ -199,24 +202,27 @@ export const restaurantUrlExists = async (url: string): Promise<boolean> => {
 
 export const addNewRestaurant = async (
   email: string,
+  name: string,
   restaurantName: string,
   restaurantUrl: string,
 ) => {
   try {
     const isExists = await restaurantUrlExists(restaurantUrl);
-    if(isExists){
+    if (isExists) {
       throw new Error('URL already exists');
     }
-    await addNewUser(email, restaurantUrl)
+    await addNewUser(email, restaurantUrl);
     await firestore()
       .collection('restaurants')
       .doc(restaurantUrl as string)
-      .set({
-        name: restaurantName,
-        userLinked:{
-          email:email,
-        }
-      },{merge: true},
+      .set(
+        {
+          name: restaurantName,
+          linkedUser: {
+            [email]: {email: email, name: name},
+          },
+        },
+        {merge: true},
       )
       .then(() => {
         Snackbar.show({
@@ -236,16 +242,16 @@ export const addNewRestaurant = async (
   }
 };
 
-export const addNewUser = async(email:string,restaurantUrl:string)=>{
+export const addNewUser = async (email: string, restaurantUrl: string) => {
   await firestore()
     .collection('users')
     .doc(email as string)
     .set({
       url: restaurantUrl,
-    })
-}
+    });
+};
 
-export const fetchAllData = async(url:string) => {
+export const fetchAllData = async (url: string) => {
   try {
     const restaurantDoc = await firestore()
       .collection('restaurants')
@@ -262,5 +268,85 @@ export const fetchAllData = async(url:string) => {
       duration: Snackbar.LENGTH_SHORT,
     });
     return null;
+  }
+};
+
+export const saveProfileInfoDB = async (info: ProfileInformation) => {
+  try {
+    const url = await AsyncStorage.getItem('url');
+    if (!url) {
+      throw new Error('URL not found in Storage');
+    }
+
+    await firestore()
+      .collection('restaurants')
+      .doc(url as string)
+      .set(
+        {
+          info: info,
+        },
+        {merge: true},
+      )
+      .then(() => {
+        Snackbar.show({
+          text: 'Profile details updated',
+          duration: Snackbar.LENGTH_SHORT,
+          action: {
+            text: 'OK',
+            textColor: '#0F766E',
+          },
+        });
+      });
+  } catch (error: any) {
+    Snackbar.show({
+      text: error.message,
+      duration: Snackbar.LENGTH_SHORT,
+    });
+  }
+};
+
+export const emailExists = async (email: string): Promise<boolean> => {
+  const res = await firestore()
+    .collection('users')
+    .doc(email as string)
+    .get();
+
+  if (res.exists) {
+    return true;
+  } else {
+    return false;
+  }
+};
+
+export const saveLinkedUsersDB = async (data:LinkedUsers) => {
+  try {
+    const url = await AsyncStorage.getItem('url');
+    if (!url) {
+      throw new Error('URL not found in Storage');
+    }
+
+    await firestore()
+      .collection('restaurants')
+      .doc(url as string)
+      .set(
+        {
+          linkedUsers: data,
+        },
+      )
+      .then(() => {
+        Snackbar.show({
+          text: 'Profile details updated',
+          duration: Snackbar.LENGTH_SHORT,
+          action: {
+            text: 'OK',
+            textColor: '#0F766E',
+          },
+        });
+      });
+  } catch (error: any) {
+    Snackbar.show({
+      text: error.message,
+      duration: Snackbar.LENGTH_SHORT,
+    });
   }
 }

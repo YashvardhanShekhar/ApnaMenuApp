@@ -1,32 +1,36 @@
-import React from 'react';
+import React, {useState, useRef} from 'react';
 import {
   View,
+  Text,
+  StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  StyleSheet,
-  Image,
+  ScrollView,
   TouchableOpacity,
+  Keyboard,
+  TouchableWithoutFeedback,
+  Image,
+  SafeAreaView,
 } from 'react-native';
-import {Text, TextInput, Button} from 'react-native-paper';
+import {TextInput, HelperText} from 'react-native-paper';
+import Icon from 'react-native-vector-icons/Feather';
 import {Formik} from 'formik';
 import * as Yup from 'yup';
-import Snackbar from 'react-native-snackbar';
-import HapticFeedback from 'react-native-haptic-feedback';
-import {useNavigation} from '@react-navigation/native';
-import {
-  addNewRestaurant,
-  restaurantUrlExists,
-  addNewUser,
-} from '../components/databaseManager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {useNavigation} from '@react-navigation/native';
+import { addNewRestaurant, restaurantUrlExists } from '../services/databaseManager';
+import { saveProfileInfo } from '../services/storageService';
 
-const RegisterSchema = Yup.object().shape({
+// Form validation schema
+const RestaurantRegistrationSchema = Yup.object().shape({
   restaurantName: Yup.string()
-    .min(2, 'Too Short!')
+    .min(3, 'Restaurant name must be at least 3 characters')
     .required('Restaurant name is required'),
   restaurantUrl: Yup.string()
-    .min(2, 'Too Short!')
+    .min(3, 'Restaurant URL must be at least 3 characters')
     .required('Restaurant URL is required')
+    .matches(/^\S*$/, 'URL cannot contain spaces')
+    .matches(/^[^/]*$/, 'URL cannot contain forward slashes ei : \' / \'')
     .test('unique-url', 'URL is already taken', async url => {
       if (!url) return true;
       const isExists = await restaurantUrlExists(url);
@@ -35,161 +39,366 @@ const RegisterSchema = Yup.object().shape({
       }
       return true;
     }),
+  phoneNumber: Yup.string()
+    .matches(/^[0-9]{10}$/, 'Phone number must be 10 digits'),
+  address: Yup.string()
+    .min(5, 'Address is too short'),
 });
 
-const FirstTimeRegisterScreen = ({
-  route,
-  navigation,
-}: {
-  route: {params: any & {email:string}};
-  navigation: any;
-}) => {
-  // const navigation = useNavigation();
-  const email = route.params.email;
-  
-  const handleRegister = async (values: {
-    restaurantName: string;
-    restaurantUrl: string;
-  }) => {
-    const {restaurantName, restaurantUrl} = values;
-    await addNewRestaurant(email, restaurantName, restaurantUrl);
-    await AsyncStorage.setItem('url', restaurantUrl);
-    navigation.reset({
-      index: 0,
-      routes: [{name: 'Home'}],
-    });
+const RestaurantRegistrationScreen = ({route}) => {
+  const navigation = useNavigation();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const nameInputRef = useRef(null);
+
+
+  const email = route?.params?.email || '';
+  const name = route?.params?.name || '';
+
+  const handleFormSubmit = async (values) => {
+    setIsSubmitting(true);
+
+    await addNewRestaurant(
+      email,
+      name,
+      values.restaurantName,
+      values.restaurantUrl,
+    );
+
+    if( values.phoneNumber || values.address ){
+      const info: ProfileInformation = {
+        phoneNumber: values.phoneNumber ,
+        address: values.address,
+        description:null,
+      };
+      await saveProfileInfo(info)
+    }
+    setIsSubmitting(false);
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.container}>
-      <View style={styles.card}>
-        <Image
-          source={require('../assets/image.png')} // Replace with your panda logo
-          style={styles.logo}
-        />
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}>
+            <Icon name="arrow-left" size={24} color="#0F172A" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Restaurant Registration </Text>
+        </View>
 
-        <Text style={styles.welcomeText}>Welcome Back To</Text>
-        <Text style={styles.brandText}>Panda Express</Text>
-
-        <Formik
-          initialValues={{restaurantName: '', restaurantUrl: ''}}
-          validationSchema={RegisterSchema}
-          onSubmit={handleRegister}>
-          {({
-            handleChange,
-            handleBlur,
-            handleSubmit,
-            values,
-            errors,
-            touched,
-          }) => (
-            <View style={styles.form}>
-              <TextInput
-                label="Restaurant Name"
-                mode="outlined"
-                value={values.restaurantName}
-                onChangeText={handleChange('restaurantName')}
-                onBlur={handleBlur('restaurantName')}
-                error={!!(errors.restaurantName && touched.restaurantName)}
-                style={styles.input}
-              />
-              {errors.restaurantName && touched.restaurantName && (
-                <Text style={styles.errorText}>{errors.restaurantName}</Text>
-              )}
-
-              <TextInput
-                label="Restaurant URL"
-                mode="outlined"
-                value={values.restaurantUrl}
-                onChangeText={handleChange('restaurantUrl')}
-                onBlur={handleBlur('restaurantUrl')}
-                error={!!(errors.restaurantUrl && touched.restaurantUrl)}
-                style={styles.input}
-              />
-              {errors.restaurantUrl && touched.restaurantUrl && (
-                <Text style={styles.errorText}>{errors.restaurantUrl}</Text>
-              )}
-
-              <TouchableOpacity style={styles.forgotPassword}>
-                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{flex: 1}}>
+          <ScrollView
+            style={styles.formContainer}
+            keyboardShouldPersistTaps="handled">
+            {/* <View style={styles.logoContainer}>
+              <View style={styles.logoPlaceholder}>
+                <Icon name="image" size={40} color="#64748B" />
+              </View>
+              <TouchableOpacity style={styles.uploadButton}>
+                <Text style={styles.uploadButtonText}>Upload Logo</Text>
               </TouchableOpacity>
+            </View> */}
 
-              <Button
-                mode="contained"
-                onPress={() => handleSubmit()}
-                style={styles.button}
-                contentStyle={{paddingVertical: 8}}>
-                Log In
-              </Button>
+            <Formik
+              initialValues={{
+                restaurantName: '',
+                restaurantUrl: '',
+                cuisineType: '',
+                phoneNumber: '',
+                address: '',
+              }}
+              validationSchema={RestaurantRegistrationSchema}
+              validateOnBlur={true}
+              onSubmit={handleFormSubmit}>
+              {({
+                handleChange,
+                handleBlur,
+                handleSubmit,
+                values,
+                errors,
+                touched,
+                isValid,
+                isValidating,
+              }) => (
+                <>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Restaurant Name</Text>
+                    <TextInput
+                      mode="outlined"
+                      style={styles.input}
+                      value={values.restaurantName}
+                      onChangeText={handleChange('restaurantName')}
+                      onBlur={handleBlur('restaurantName')}
+                      error={
+                        !!(touched.restaurantName && errors.restaurantName)
+                      }
+                      ref={nameInputRef}
+                      outlineStyle={styles.inputOutline}
+                      theme={{colors: {primary: '#0F766E', text: '#0F172A'}}}
+                      left={<TextInput.Icon icon="store" color="#64748B" />}
+                      textColor="#0F172A"
+                      placeholder="Enter your restaurant name"
+                    />
+                    {touched.restaurantName && errors.restaurantName && (
+                      <HelperText
+                        type="error"
+                        visible={true}
+                        style={styles.errorText}>
+                        {errors.restaurantName}
+                      </HelperText>
+                    )}
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Restaurant URL</Text>
+                    <TextInput
+                      mode="outlined"
+                      style={styles.input}
+                      value={values.restaurantUrl}
+                      onChangeText={handleChange('restaurantUrl')}
+                      onBlur={handleBlur('restaurantUrl')}
+                      error={!!(touched.restaurantUrl && errors.restaurantUrl)}
+                      outlineStyle={styles.inputOutline}
+                      theme={{colors: {primary: '#0F766E', text: '#0F172A'}}}
+                      left={<TextInput.Icon icon="link" color="#64748B" />}
+                      textColor="#0F172A"
+                      placeholder="yourrestaurant (no spaces)"
+                    />
+                    {touched.restaurantUrl && errors.restaurantUrl && (
+                      <HelperText
+                        type="error"
+                        visible={true}
+                        style={styles.errorText}>
+                        {errors.restaurantUrl}
+                      </HelperText>
+                    )}
+                    <Text style={styles.urlPreview}>
+                      URL will look like : apnamenu.vercel.app/
+                      <Text style={styles.urlHighlight}>
+                        {values.restaurantUrl || 'yourrestaurant'}
+                      </Text>
+                    </Text>
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Phone Number</Text>
+                    <TextInput
+                      mode="outlined"
+                      style={styles.input}
+                      value={values.phoneNumber}
+                      onChangeText={handleChange('phoneNumber')}
+                      onBlur={handleBlur('phoneNumber')}
+                      error={!!(touched.phoneNumber && errors.phoneNumber)}
+                      keyboardType="phone-pad"
+                      outlineStyle={styles.inputOutline}
+                      theme={{colors: {primary: '#0F766E', text: '#0F172A'}}}
+                      left={<TextInput.Icon icon="phone" color="#64748B" />}
+                      textColor="#0F172A"
+                      placeholder="10-digit phone number"
+                    />
+                    {touched.phoneNumber && errors.phoneNumber && (
+                      <HelperText
+                        type="error"
+                        visible={true}
+                        style={styles.errorText}>
+                        {errors.phoneNumber}
+                      </HelperText>
+                    )}
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Restaurant Address</Text>
+                    <TextInput
+                      mode="outlined"
+                      style={styles.input}
+                      value={values.address}
+                      onChangeText={handleChange('address')}
+                      onBlur={handleBlur('address')}
+                      error={!!(touched.address && errors.address)}
+                      outlineStyle={styles.inputOutline}
+                      theme={{colors: {primary: '#0F766E', text: '#0F172A'}}}
+                      left={
+                        <TextInput.Icon icon="map-marker" color="#64748B" />
+                      }
+                      textColor="#0F172A"
+                      placeholder="Full restaurant address"
+                      multiline
+                    />
+                    {touched.address && errors.address && (
+                      <HelperText
+                        type="error"
+                        visible={true}
+                        style={styles.errorText}>
+                        {errors.address}
+                      </HelperText>
+                    )}
+                  </View>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.submitButton,
+                      (!isValid || isSubmitting || isValidating) &&
+                        styles.disabledButton,
+                    ]}
+                    disabled={!isValid || isSubmitting || isValidating}
+                    onPress={() => handleSubmit()}>
+                    {isSubmitting ? (
+                      <Text style={styles.submitButtonText}>
+                        Registering...
+                      </Text>
+                    ) : (
+                      <>
+                        <Icon
+                          name="check-circle"
+                          size={20}
+                          color="#fff"
+                          style={styles.buttonIcon}
+                        />
+                        <Text style={styles.submitButtonText}>
+                          Complete Registration
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </>
+              )}
+            </Formik>
+
+            <View style={styles.footerContainer}>
+              <Icon name="info" size={16} color="#64748B" />
+              <Text style={styles.policyText}>
+                By registering, you agree to our Terms of Service and Privacy
+                Policy.
+              </Text>
             </View>
-          )}
-        </Formik>
-      </View>
-    </KeyboardAvoidingView>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </TouchableWithoutFeedback>
   );
 };
-
-export default FirstTimeRegisterScreen;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#e3f2f1', // soft green background
-    justifyContent: 'center',
+    backgroundColor: '#F8FAFC',
+  },
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginLeft: 12,
+  },
+  formContainer: {
     padding: 20,
   },
-  card: {
-    backgroundColor: '#ffffff',
-    width: '100%',
-    borderRadius: 20,
-    padding: 25,
+  logoContainer: {
     alignItems: 'center',
-    elevation: 5,
+    marginBottom: 24,
   },
-  logo: {
+  logoPlaceholder: {
     width: 100,
     height: 100,
-    resizeMode: 'contain',
+    borderRadius: 50,
+    backgroundColor: '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  uploadButton: {
+    backgroundColor: '#CBD5E1',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  uploadButtonText: {
+    color: '#334155',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  inputGroup: {
     marginBottom: 20,
   },
-  welcomeText: {
-    fontSize: 20,
-    color: '#555',
-    marginBottom: 5,
-  },
-  brandText: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#000',
-    marginBottom: 20,
-  },
-  form: {
-    width: '100%',
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#334155',
+    marginBottom: 8,
   },
   input: {
-    marginBottom: 15,
-    backgroundColor: 'white',
+    backgroundColor: '#FFFFFF',
+    height: 56,
   },
-  button: {
-    marginTop: 20,
-    backgroundColor: '#000', // black login button
-    borderRadius: 10,
+  inputOutline: {
+    borderRadius: 12,
+    borderWidth: 1,
   },
   errorText: {
-    color: 'red',
-    fontSize: 12,
-    marginBottom: 10,
-    marginLeft: 5,
+    color: '#DC2626',
+    paddingLeft: 0,
+    fontSize: 14,
   },
-  forgotPassword: {
-    alignSelf: 'flex-end',
-    marginBottom: 10,
-  },
-  forgotPasswordText: {
-    color: '#555',
+  urlPreview: {
+    marginTop: 6,
     fontSize: 13,
+    color: '#64748B',
+    paddingLeft: 4,
+  },
+  urlHighlight: {
+    color: '#0F766E',
+    fontWeight: '600',
+  },
+  submitButton: {
+    backgroundColor: '#0F766E',
+    borderRadius: 12,
+    paddingVertical: 16,
+    marginTop: 16,
+    marginBottom: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  disabledButton: {
+    backgroundColor: '#94A3B8',
+    opacity: 0.7,
+  },
+  buttonIcon: {
+    marginRight: 8,
+  },
+  submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  footerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  policyText: {
+    marginLeft: 8,
+    color: '#64748B',
+    fontSize: 14,
+    flexShrink: 1,
   },
 });
+
+export default RestaurantRegistrationScreen;

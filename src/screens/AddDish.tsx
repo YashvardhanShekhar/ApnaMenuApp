@@ -14,9 +14,13 @@ import {TextInput, Button, HelperText} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/Feather';
 import {Formik} from 'formik';
 import * as Yup from 'yup';
-import {userProps} from '../App'; // Import userProps from App.tsx
-import { useNavigation } from '@react-navigation/native';
-import { addNewDish, categoryExists, dishExists } from '../components/databaseManager';
+// import {userProps} from '../App'; // Import userProps from App.tsx
+import {useNavigation} from '@react-navigation/native';
+import {
+  addNewDish,
+  categoryExists,
+  dishExists,
+} from '../services/databaseManager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Transform your schema to use async validation
@@ -31,9 +35,9 @@ const AddDishSchema = Yup.object().shape({
         try {
           const category = this.parent.category;
           const data = await AsyncStorage.getItem('menu');
-          if(!data) return true;
+          if (!data) return true;
           const menu = JSON.parse(data);
-          if (menu[category] && menu[category][dishName] ) {
+          if (menu[category] && menu[category][dishName]) {
             return false;
           }
           return true;
@@ -48,16 +52,14 @@ const AddDishSchema = Yup.object().shape({
     .positive('Price must be a positive number')
     .integer('Price must be an integer')
     .required('Price is required'),
-  category: Yup.string()
-    .required('Category is required')
+  category: Yup.string().required('Category is required'),
 });
-
 
 const AddDishScreen = ({
   route,
   navigation,
 }: {
-  route: {params: userProps & {category: string, addDishInMenu:Function}};
+  route: {params: & {category: string; addDishInMenu: Function}};
   navigation: any;
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -67,7 +69,7 @@ const AddDishScreen = ({
   const user = route.params;
   const initialCategory = route.params.category;
   const addDishInMenu = route.params.addDishInMenu;
-  
+
   const isNewCategory = initialCategory === null ? true : false;
 
   useEffect(() => {
@@ -101,9 +103,9 @@ const AddDishScreen = ({
     // Focus on the dish name input when the component mounts
     setTimeout(() => {
       if (dishNameInputRef.current) {
-        if(isNewCategory){
+        if (isNewCategory) {
           categoryNameInputRef.current.focus();
-        }else{
+        } else {
           dishNameInputRef.current.focus();
         }
       }
@@ -112,7 +114,7 @@ const AddDishScreen = ({
 
   const handleFormSubmit = async (values: any) => {
     setIsSubmitting(true);
-    
+
     try {
       addNewDish(values.category, values.dishName, values.price);
       addDishInMenu(values.category, values.dishName, values.price);

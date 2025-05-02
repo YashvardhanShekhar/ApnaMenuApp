@@ -15,10 +15,9 @@ import {useNavigation, StackActions} from '@react-navigation/native';
 import Feather from 'react-native-vector-icons/Feather';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
-import { handleSignIn } from '../components/authentication';
+import {handleSignIn} from '../services/authentication';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-
 
 export default function App() {
   const navigation = useNavigation();
@@ -160,8 +159,8 @@ export default function App() {
 
   const SignIn = async () => {
     setLoading(true);
-    await handleSignIn(navigation)
-    setLoading(false)
+    await handleSignIn(navigation);
+    setLoading(false);
   };
 
   const toggleTheme = () => {

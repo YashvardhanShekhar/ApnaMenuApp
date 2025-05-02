@@ -20,7 +20,7 @@ import {
   addNewDish,
   deleteDish,
   setAvailability,
-} from '../components/databaseManager';
+} from '../services/databaseManager';
 
 type RouteParams = {
   updatedDish?: {
@@ -107,18 +107,6 @@ const MenuScreen: React.FC = () => {
   });
 
   const [searchQuery, setSearchQuery] = useState('');
-
-  // useEffect(() => {
-  //   if (route.params?.updatedDish) {
-  //     const {id, category, name, price, status} = route.params.updatedDish;
-  //     setMenuItems(prev => ({
-  //       ...prev,
-  //       [category]: prev[category].map(item =>
-  //         item.id === id ? {...item, name, price, status} : item,
-  //       ),
-  //     }));
-  //   }
-  // }, [route.params?.updatedDish]);
 
   const addDishInMenu = async (
     category: string,
@@ -228,7 +216,7 @@ const MenuScreen: React.FC = () => {
     ReactNativeHapticFeedback.trigger('impactLight', {
       enableVibrateFallback: true,
     });
-  }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -358,9 +346,6 @@ const MenuScreen: React.FC = () => {
           <View style={styles.categorySection}>
             <TouchableOpacity activeOpacity={0.5} style={styles.categoryHeader}>
               <View style={styles.categoryTitleContainer}>
-                {/* <Text style={styles.categoryIcon}>
-                    {icons[category as keyof typeof icons] || '📋'}
-                  </Text> */}
                 <Text style={styles.categoryTitle}>Add New Dish Category</Text>
               </View>
               <View style={styles.categoryHeaderRight}>
@@ -369,14 +354,6 @@ const MenuScreen: React.FC = () => {
                   onPress={() => handleAddDish(null)}>
                   <Icon name="plus-circle" size={20} color="#0F766E" />
                 </TouchableOpacity>
-                {/* <Icon
-                  name={
-                    expandedCategories[category] ? 'chevron-up' : 'chevron-down'
-                  }
-                  size={24}
-                  color="#0F172A"
-                  style={{marginLeft: 10}}
-                /> */}
               </View>
             </TouchableOpacity>
           </View>

@@ -1,21 +1,19 @@
 import React from 'react';
 import {View, Text, StyleSheet, TouchableOpacity, Switch} from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import {useTheme} from '../screens/ThemeContext';
+// import {useTheme} from '../Theme/Theme';
 import {useNavigation} from '@react-navigation/native';
-import {handleLogOut} from '../components/authentication';
+import {handleLogOut} from '../services/authentication';
 
-import firestore, { average } from '@react-native-firebase/firestore';
-import {addNewDish, addCategory, deleteDish} from '../components/databaseManager';
+import firestore, {average} from '@react-native-firebase/firestore';
+import {addNewDish, addCategory, deleteDish} from '../services/databaseManager';
 
 const SettingsScreen = () => {
-  const {theme, toggleTheme} = useTheme();
-  const isDark = theme === 'dark';
-  const navigation = useNavigation();
-  
-  const pressed = async() => {
-     await deleteDish('Beverages', 'Heel');
-  }
+    const navigation = useNavigation();
+
+  const pressed = async () => {
+    await deleteDish('Beverages', 'Heel');
+  };
 
   return (
     <View
@@ -24,9 +22,7 @@ const SettingsScreen = () => {
         Settings
       </Text>
 
-      <TouchableOpacity style={styles.item}
-        onPress={pressed}
-      >
+      <TouchableOpacity style={styles.item} onPress={pressed}>
         <Ionicons
           name="person-outline"
           size={22}
@@ -47,24 +43,6 @@ const SettingsScreen = () => {
           Notifications
         </Text>
       </TouchableOpacity>
-
-      <View style={styles.item}>
-        <Ionicons
-          name="moon-outline"
-          size={22}
-          color={isDark ? '#fff' : '#333'}
-        />
-        <Text style={[styles.label, {color: isDark ? '#fff' : '#333'}]}>
-          Dark Mode
-        </Text>
-        <Switch
-          value={isDark}
-          onValueChange={toggleTheme}
-          thumbColor={isDark ? '#fff' : '#aaa'}
-          trackColor={{false: '#ccc', true: '#444'}}
-          style={{marginLeft: 'auto'}}
-        />
-      </View>
 
       <TouchableOpacity
         style={styles.item}
