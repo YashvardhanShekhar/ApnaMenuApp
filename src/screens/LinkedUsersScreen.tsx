@@ -17,7 +17,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import * as Yup from 'yup';
 import {Formik, FieldArray, ErrorMessage, getIn} from 'formik';
 import Snackbar from 'react-native-snackbar';
-import {emailExists, saveLinkedUsersDB} from '../services/databaseManager';
+import {deleteUsersInUsers, emailExists, saveLinkedUsersDB} from '../services/databaseManager';
 import {fetchLinkedUsers, saveLinkedUsers} from '../services/storageService';
 import {checkInternet} from '../components/chechInternet';
 
@@ -129,6 +129,7 @@ const LinkedUsersScreen = () => {
   const handleSubmit = async values => {
     try {
       // Format data for submission
+      console.log(arr)
       const ci = await checkInternet();
       if (!ci) {
         return;
@@ -140,7 +141,7 @@ const LinkedUsersScreen = () => {
 
       await saveLinkedUsers(formattedData);
       await saveLinkedUsersDB(formattedData);
-
+      await deleteUsersInUsers(arr);
       // Navigate back
       navigation.goBack();
     } catch (error) {
@@ -152,6 +153,8 @@ const LinkedUsersScreen = () => {
       });
     }
   };
+
+  const arr: string[] = [];
 
   return (
     <SafeAreaView style={styles.container}>
@@ -313,6 +316,9 @@ const LinkedUsersScreen = () => {
                                       duration: Snackbar.LENGTH_SHORT,
                                     });
                                   } else if (values.users.length > 1) {
+                                    if(user.isOriginal){
+                                      arr.push(user.email)
+                                    }
                                     remove(index);
                                     Snackbar.show({
                                       text: 'User deleted',

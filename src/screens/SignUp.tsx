@@ -122,14 +122,7 @@ const RestaurantRegistrationScreen = ({route}) => {
           <ScrollView
             style={styles.formContainer}
             keyboardShouldPersistTaps="handled">
-            {/* <View style={styles.logoContainer}>
-              <View style={styles.logoPlaceholder}>
-                <Icon name="image" size={40} color="#64748B" />
-              </View>
-              <TouchableOpacity style={styles.uploadButton}>
-                <Text style={styles.uploadButtonText}>Upload Logo</Text>
-              </TouchableOpacity>
-            </View> */}
+            
 
             <Formik
               initialValues={{

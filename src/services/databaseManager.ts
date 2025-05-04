@@ -3,6 +3,7 @@ import React from 'react';
 import firestore from '@react-native-firebase/firestore';
 import Snackbar from 'react-native-snackbar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {fetchUrl} from './storageService';
 
 export const addNewDishDB = async (
   category: string,
@@ -251,25 +252,22 @@ export const addNewUser = async (email: string, restaurantUrl: string) => {
     });
 };
 
-export const deleteUsers = async (data:LinkedUsers) => {
+export const deleteUsers = async (data: LinkedUsers) => {
   try {
-    Object.keys(data).forEach( async (email)=>{
-      await firestore()
-        .collection('users')
-        .doc(email)
-        .delete()
-    })
+    Object.keys(data).forEach(async email => {
+      await firestore().collection('users').doc(email).delete();
+    });
     Snackbar.show({
-      text:'selected users were deleted',
-      duration:Snackbar.LENGTH_SHORT,
-    })
+      text: 'selected users were deleted',
+      duration: Snackbar.LENGTH_SHORT,
+    });
   } catch (error: any) {
     Snackbar.show({
       text: error.message,
       duration: Snackbar.LENGTH_SHORT,
     });
   }
-}
+};
 
 export const fetchAllData = async (url: string) => {
   try {
@@ -372,19 +370,43 @@ export const saveLinkedUsersDB = async (data: LinkedUsers) => {
   }
 };
 
-export const deleteAccountPermanently = async(email:string,url:string) => {
-  try{
+export const deleteAccountPermanently = async (email: string, url: string) => {
+  try {
     await firestore().collection('users').doc(email).delete();
     await firestore().collection('restaurants').doc(url).delete();
     Snackbar.show({
-      text: url+" has been deleted Permanently",
-      duration:Snackbar.LENGTH_LONG,
-    })
-  } catch (error){
-    console.log(error)
+      text: url + ' has been deleted Permanently',
+      duration: Snackbar.LENGTH_LONG,
+    });
+  } catch (error) {
+    console.log(error);
     Snackbar.show({
       text: 'some error has occurred try again',
       duration: Snackbar.LENGTH_LONG,
     });
   }
-}
+};
+
+export const deleteUsersInUsers = async (arr: string[]) => {
+  const url = await fetchUrl();
+  try {
+    arr.map(async email => {
+      const res = await firestore().collection('users').doc(email).get();
+      const resUrl = res.data()?.url;
+      if (url === resUrl) {
+        await firestore().collection('users').doc(email).delete();
+      } else {
+        Snackbar.show({
+          text: email + ' has linked to different restaurant',
+          duration: Snackbar.LENGTH_LONG,
+        });
+      }
+    });
+  } catch (error) {
+    console.log(error);
+    Snackbar.show({
+      text: 'some error has occurred try again',
+      duration: Snackbar.LENGTH_LONG,
+    });
+  }
+};

@@ -19,7 +19,7 @@ import {useNavigation} from '@react-navigation/native';
 import {saveProfileInfoDB} from '../services/databaseManager';
 import {fetchProfileInfo, saveProfileInfo} from '../services/storageService';
 import Icon from 'react-native-vector-icons/Feather';
-import { checkInternet } from '../components/chechInternet';
+import {checkInternet} from '../components/chechInternet';
 
 const ProfileSchema = Yup.object().shape({
   name: Yup.string()
@@ -37,7 +37,9 @@ const ProfileSchema = Yup.object().shape({
 const EditInfo = () => {
   const navigation = useNavigation();
   const [loading, setLoading] = useState(false);
-  const [profileData, setProfileData] = useState<ProfileInformation|null>(null);
+  const [profileData, setProfileData] = useState<ProfileInformation | null>(
+    null,
+  );
   const [descHeight, setDescHeight] = useState(100);
 
   useEffect(() => {
@@ -75,7 +77,7 @@ const EditInfo = () => {
     loadProfileData();
   }, []);
 
-  const handleSave = async (values:ProfileInformation) => {
+  const handleSave = async (values: ProfileInformation) => {
     setLoading(true);
     const ci = await checkInternet();
     if (!ci) {
@@ -111,6 +113,14 @@ const EditInfo = () => {
         <ScrollView
           contentContainerStyle={styles.formContainer}
           keyboardShouldPersistTaps="handled">
+          <View style={styles.logoContainer}>
+            <TouchableOpacity style={styles.uploadButton}>
+            <View style={styles.logoPlaceholder}>
+              <Icon name="image" size={40} color="#64748B" />
+            </View>
+              {/* <Text style={styles.uploadButtonText}>Upload Logo</Text> */}
+            </TouchableOpacity>
+          </View>
           <Formik
             enableReinitialize
             initialValues={{
@@ -297,6 +307,30 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#0F172A',
     marginLeft: 12,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  logoPlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  // uploadButton: {
+  //   backgroundColor: '#CBD5E1',
+  //   paddingHorizontal: 16,
+  //   paddingVertical: 8,
+  //   borderRadius: 20,
+  // },
+  uploadButtonText: {
+    color: '#334155',
+    fontWeight: '600',
+    fontSize: 14,
   },
   formContainer: {
     padding: 20,

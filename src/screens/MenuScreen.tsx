@@ -224,12 +224,13 @@ const MenuItemsScreen = () => {
   };
 
   const toggleAvailability = async (category: string, name: string) => {
+    const val = !menuItems[category][name].status;
     const tempMenu = {...menuItems};
-    tempMenu[category][name].status = !menuItems[category][name].status;
+    tempMenu[category][name].status = val;
     setMenuItems(tempMenu);
     Haptic();
     await saveMenu(menuItems);
-    await setAvailability(category, name, !menuItems[category][name].status);
+    await setAvailability(category, name, val);
     await loadStats();
   };
 
