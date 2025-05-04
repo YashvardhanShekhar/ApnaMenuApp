@@ -17,11 +17,14 @@ import * as Yup from 'yup';
 // import {userProps} from '../App'; // Import userProps from App.tsx
 import {useNavigation} from '@react-navigation/native';
 import {
-  addNewDish,
+  addNewDishDB,
   categoryExists,
   dishExists,
 } from '../services/databaseManager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as NavigationService from '../services/navigationService';
+import {addNewDish} from '../services/storageService';
+import {checkInternet} from '../components/chechInternet';
 
 // Transform your schema to use async validation
 const AddDishSchema = Yup.object().shape({
@@ -59,7 +62,7 @@ const AddDishScreen = ({
   route,
   navigation,
 }: {
-  route: {params: & {category: string; addDishInMenu: Function}};
+  route: {params: {category: string; addDishInMenu: Function}};
   navigation: any;
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -68,7 +71,6 @@ const AddDishScreen = ({
 
   const user = route.params;
   const initialCategory = route.params.category;
-  const addDishInMenu = route.params.addDishInMenu;
 
   const isNewCategory = initialCategory === null ? true : false;
 
@@ -114,11 +116,17 @@ const AddDishScreen = ({
 
   const handleFormSubmit = async (values: any) => {
     setIsSubmitting(true);
+    const ci = await checkInternet();
+    if (!ci) {
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
-      addNewDish(values.category, values.dishName, values.price);
-      addDishInMenu(values.category, values.dishName, values.price);
-      navigation.goBack();
+      await addNewDish(values.category, values.dishName, values.price);
+      await addNewDishDB(values.category, values.dishName, values.price);
+
+      NavigationService.goBack();
     } catch (error) {
       console.error('Error adding dish:', error);
     } finally {

@@ -19,8 +19,12 @@ import {useNavigation} from '@react-navigation/native';
 import {saveProfileInfoDB} from '../services/databaseManager';
 import {fetchProfileInfo, saveProfileInfo} from '../services/storageService';
 import Icon from 'react-native-vector-icons/Feather';
+import { checkInternet } from '../components/chechInternet';
 
 const ProfileSchema = Yup.object().shape({
+  name: Yup.string()
+    .required('Restaurant name is required')
+    .min(2, 'Name is too short'),
   phoneNumber: Yup.string()
     .matches(/^[0-9+\s-]+$/, 'Invalid phone number format')
     .length(10, 'Phone number must be exactly 10 digits'),
@@ -33,35 +37,35 @@ const ProfileSchema = Yup.object().shape({
 const EditInfo = () => {
   const navigation = useNavigation();
   const [loading, setLoading] = useState(false);
-  const [profileData, setProfileData] = useState(null);
+  const [profileData, setProfileData] = useState<ProfileInformation|null>(null);
   const [descHeight, setDescHeight] = useState(100);
 
   useEffect(() => {
-      const parent = navigation.getParent(); // Get Tab Navigator
+    const parent = navigation.getParent(); // Get Tab Navigator
+    parent?.setOptions({
+      tabBarStyle: {display: 'none'},
+    });
+
+    return () => {
       parent?.setOptions({
-        tabBarStyle: {display: 'none'},
+        tabBarShowLabel: false,
+        headerShown: false,
+        tabBarStyle: {
+          position: 'absolute',
+          bottom: 15,
+          left: 20,
+          right: 20,
+          backgroundColor: '#ffffff',
+          borderRadius: 25,
+          height: 55,
+          paddingBottom: 8,
+          paddingTop: 8,
+          marginHorizontal: 10,
+          ...styles.shadow,
+        },
       });
-  
-      return () => {
-        parent?.setOptions({
-          tabBarShowLabel: false,
-          headerShown: false,
-          tabBarStyle: {
-            position: 'absolute',
-            bottom: 15,
-            left: 20,
-            right: 20,
-            backgroundColor: '#ffffff',
-            borderRadius: 25,
-            height: 55,
-            paddingBottom: 8,
-            paddingTop: 8,
-            marginHorizontal: 10,
-            ...styles.shadow,
-          },
-        });
-      };
-    }, [navigation]);
+    };
+  }, [navigation]);
 
   useEffect(() => {
     const loadProfileData = async () => {
@@ -71,15 +75,21 @@ const EditInfo = () => {
     loadProfileData();
   }, []);
 
-  const handleSave = async values => {
+  const handleSave = async (values:ProfileInformation) => {
     setLoading(true);
+    const ci = await checkInternet();
+    if (!ci) {
+      setLoading(false);
+      return;
+    }
     const info = {
+      name: values.name || null,
       phoneNumber: values.phoneNumber || null,
       address: values.address || null,
       description: values.description || null,
     };
-    await saveProfileInfo(info);
-    await saveProfileInfoDB(info);
+    await saveProfileInfo(info as ProfileInformation);
+    await saveProfileInfoDB(info as ProfileInformation);
     setLoading(false);
     navigation.goBack();
   };
@@ -104,6 +114,7 @@ const EditInfo = () => {
           <Formik
             enableReinitialize
             initialValues={{
+              name: profileData?.name || '',
               phoneNumber: profileData?.phoneNumber || '',
               address: profileData?.address || '',
               description: profileData?.description || '',
@@ -120,6 +131,31 @@ const EditInfo = () => {
               isValid,
             }) => (
               <>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Restaurant Name</Text>
+                  <TextInput
+                    mode="outlined"
+                    style={styles.input}
+                    value={values.name}
+                    onChangeText={handleChange('name')}
+                    onBlur={handleBlur('name')}
+                    placeholder="Enter restaurant name"
+                    placeholderTextColor="#94A3B8"
+                    error={!!(touched.name && errors.name)}
+                    outlineStyle={styles.inputOutline}
+                    theme={{colors: {primary: '#0F766E', text: '#0F172A'}}}
+                    left={
+                      <TextInput.Icon icon="store-outline" color="#64748B" />
+                    }
+                    textColor="#0F172A"
+                  />
+                  {touched.name && errors.name && (
+                    <HelperText type="error" visible style={styles.errorText}>
+                      {errors.name}
+                    </HelperText>
+                  )}
+                </View>
+
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Phone Number</Text>
                   <TextInput
@@ -182,7 +218,7 @@ const EditInfo = () => {
                     value={values.description}
                     onChangeText={handleChange('description')}
                     onBlur={handleBlur('description')}
-                    placeholder="tell us about your restaurant"
+                    placeholder="Tell us about your restaurant"
                     placeholderTextColor="#94A3B8"
                     multiline
                     onContentSizeChange={e =>
@@ -207,7 +243,7 @@ const EditInfo = () => {
                     styles.submitButton,
                     (!isValid || loading) && styles.disabledButton,
                   ]}
-                  onPress={handleSubmit}
+                  onPress={() => handleSubmit()}
                   disabled={!isValid || loading}>
                   {loading ? (
                     <ActivityIndicator color="#FFFFFF" />
@@ -322,6 +358,16 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontSize: 14,
     flexShrink: 1,
+  },
+  shadow: {
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
 });
 

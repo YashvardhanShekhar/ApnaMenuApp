@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import {
   StyleSheet,
   View,
@@ -9,79 +9,146 @@ import {
   ScrollView,
   SafeAreaView,
   ActivityIndicator,
+  Alert,
+  RefreshControl,
+  ImageBackground,
+  Linking,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
-import {useNavigation} from '@react-navigation/native';
-import {fetchProfileInfo} from '../services/storageService';
+import {useIsFocused, useNavigation} from '@react-navigation/native';
+import {
+  fetchMenu,
+  fetchProfileInfo,
+  fetchStats,
+  fetchUrl,
+  fetchUser,
+  syncData,
+} from '../services/storageService';
+import Snackbar from 'react-native-snackbar';
+import {handleLogOut} from '../services/authentication';
+import * as NavigationService from '../services/navigationService';
+import {checkInternet} from '../components/chechInternet';
 
 const ProfileScreen = () => {
-  const navigation = useNavigation();
+  const isFocused = useIsFocused();
   const [loading, setLoading] = useState(true);
-  const [profileCompletion, setProfileCompletion] = useState(65);
-  const [profileData, setProfileData] = useState<ProfileInformation|null>(null);
+  const [url, setUrl] = useState<string>('');
+  const [profileData, setProfileData] = useState<ProfileInformation | null>(
+    null,
+  );
+  const [stats, setStats] = useState<Stats>({});
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    const ci = await checkInternet();
+    if (!ci) {
+      setRefreshing(false);
+      return;
+    }
+    await syncData();
+    setRefreshing(false);
+  }, []);
+
   const [user, setUser] = useState({
-    name: 'Spice Garden',
-    photo:
-      'https://fiverr-res.cloudinary.com/images/q_auto,f_auto/gigs/129638459/original/a2f7a0cf96e7e8c491b3f1ac4fa7a1588a8273b7/draw-your-profile-picture-with-minimalist-cartoon-style.jpg',
+    name: 'User Unavailable',
+    photo: '',
   });
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        setLoading(true);
+        setRefreshing(true);
 
-        const userData = await AsyncStorage.getItem('user');
-        if (userData) {
-          setUser(JSON.parse(userData));
+        const user = await fetchUser();
+        if (user) {
+          setUser(user);
         }
-        // Fetch profile info
+        const stats = await fetchStats();
+        if (stats) {
+          setStats(stats);
+        }
         const info = await fetchProfileInfo();
+        console.log(info);
+        const url = await fetchUrl();
         if (info) {
           setProfileData(info);
+        }
+        if (url) {
+          setUrl(url);
         }
       } catch (error) {
         console.error('Error loading profile data:', error);
       } finally {
-        setLoading(false);
+        setRefreshing(false);
       }
     };
-
-    loadData();
-  }, []);
+    if (isFocused) {
+      loadData();
+    }
+  }, [isFocused]);
 
   function handleEditInfo() {
-    navigation.navigate('EditInfo');
+    NavigationService.navigate('EditInfo');
   }
 
   function handleManageLinkedUsers() {
-    navigation.navigate('LinkedUsers');
+    NavigationService.navigate('LinkedUsers');
+  }
+
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  async function handleLogout() {
+    setIsLoggingOut(true);
+    await handleLogOut();
+    setIsLoggingOut(false);
+  }
+
+  function handleDeleteAccount() {
+    NavigationService.navigate('AccountDeletion');
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView>
+      <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }>
         {/* Profile Info */}
         <View style={styles.profileSection}>
           <View style={styles.profileImageContainer}>
-            <Image style={styles.profileImage} source={{uri: user.photo}} />
+            <ImageBackground
+              source={require('../assets/profile.png')}
+              resizeMode="cover">
+              <Image style={styles.profileImage} source={{uri: user.photo}} />
+            </ImageBackground>
           </View>
-          <Text style={styles.restaurantName}>{user.name}</Text>
-          <Text style={styles.restaurantType}>Authentic Indian Cuisine</Text>
+          <Text style={styles.restaurantName}>{profileData?.name}</Text>
+          <Text style={styles.restaurantType}>
+            <TouchableOpacity
+              onPress={() =>
+                Linking.openURL(`https://apnamenu.vercel.app/${url}`)
+              }>
+              <Text style={{color: '#0F766E', textDecorationLine: 'underline'}}>
+                Visit Website
+              </Text>
+            </TouchableOpacity>
+          </Text>
         </View>
 
         {/* Stats */}
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>156</Text>
-            <Text style={styles.statLabel}>Menu Items</Text>
+            <Text style={styles.statNumber}>{stats.totalItems}</Text>
+            <Text style={styles.statLabel}>Total Items</Text>
           </View>
           <View style={[styles.statItem, styles.statBorder]}>
-            <Text style={styles.statNumber}>847</Text>
-            <Text style={styles.statLabel}>Daily Viewers</Text>
+            <Text style={styles.statNumber}>{stats.availableItems}</Text>
+            <Text style={styles.statLabel}>Available</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>42</Text>
-            <Text style={styles.statLabel}>Orders Today</Text>
+            <Text style={styles.statNumber}>{stats.soldOutItems}</Text>
+            <Text style={styles.statLabel}>Sold Out</Text>
           </View>
         </View>
 
@@ -89,65 +156,54 @@ const ProfileScreen = () => {
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionTitle}>Profile Details</Text>
 
-          {loading ? (
-            <ActivityIndicator
-              size="small"
-              color="#0F766E"
-              style={styles.loader}
+          <View style={styles.contactContainer}>
+            <ContactItem
+              icon="phone"
+              title="Phone Number"
+              value={profileData?.phoneNumber || 'Not added yet'}
+              placeholder="Add your phone number"
             />
-          ) : (
-            <View style={styles.contactContainer}>
-              <ContactItem
-                icon="phone"
-                title="Phone Number"
-                value={profileData?.phoneNumber || 'Not added yet'}
-                placeholder="Add your phone number"
-              />
 
-              <ContactItem
-                icon="map-pin"
-                title="Address"
-                value={profileData?.address || 'Not added yet'}
-                placeholder="Add your address"
-              />
+            <ContactItem
+              icon="map-pin"
+              title="Address"
+              value={profileData?.address || 'Not added yet'}
+              placeholder="Add your address"
+            />
 
-              <ContactItem
-                icon="info"
-                title="Description"
-                value={profileData?.description || 'Not added yet'}
-                placeholder="Add a description"
-                isDescription={true}
-              />
+            <ContactItem
+              icon="info"
+              title="Description"
+              value={profileData?.description || 'Not added yet'}
+              placeholder="Add a description"
+              isDescription={true}
+            />
 
-              <TouchableOpacity
-                style={styles.editButton}
-                onPress={handleEditInfo}>
-                <Icon
-                  name="edit-2"
-                  size={20}
-                  color="#fff"
-                  style={styles.buttonIcon}
-                />
-                <Text style={styles.editButtonText}>Edit Information</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={handleEditInfo}>
+              <Icon
+                name="edit-2"
+                size={20}
+                color="#fff"
+                style={styles.buttonIcon}
+              />
+              <Text style={styles.editButtonText}>Edit Information</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Status Cards */}
         <View style={styles.statusCardsContainer}>
           <TouchableOpacity style={styles.statusCard}>
-            <View
-              style={[styles.statusIndicator, {backgroundColor: '#2196F3'}]}>
-              <Text style={styles.statusPercentage}>75%</Text>
-            </View>
             <View style={styles.statusContent}>
               <Text style={styles.statusTitle}>Upload Menu Items</Text>
               <Text style={styles.statusDescription}>
                 Add your dishes with photos
               </Text>
             </View>
-            <Icon name="chevron-right" size={24} color="#64748B" />
+            <Icon name="camera" size={24} color="#64748B" />
+            
           </TouchableOpacity>
         </View>
 
@@ -166,7 +222,52 @@ const ProfileScreen = () => {
               Manage Linked Users
             </Text>
           </TouchableOpacity>
-          
+        </View>
+
+        {/* Logout Button */}
+        <View style={styles.actionButtonsContainer}>
+          <TouchableOpacity
+            style={[styles.logoutButton, isLoggingOut && {opacity: 0.7}]}
+            onPress={handleLogout}
+            disabled={isLoggingOut}>
+            {isLoggingOut ? (
+              <>
+                <ActivityIndicator
+                  size="small"
+                  color="#FFFFFF"
+                  style={styles.buttonIcon}
+                />
+                <Text style={styles.logoutButtonText}>Logging out...</Text>
+              </>
+            ) : (
+              <>
+                <Icon
+                  name="log-out"
+                  size={20}
+                  color="#fff"
+                  style={styles.buttonIcon}
+                />
+                <Text style={styles.logoutButtonText}>Logout</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Delete Account Button */}
+        <View style={styles.deleteAccountContainer}>
+          <TouchableOpacity
+            style={styles.deleteAccountButton}
+            onPress={handleDeleteAccount}>
+            <Icon
+              name="trash-2"
+              size={20}
+              color="#fff"
+              style={styles.buttonIcon}
+            />
+            <Text style={styles.deleteAccountButtonText}>
+              Delete Account Permanently
+            </Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -208,7 +309,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
-    paddingBottom:50,
+    paddingBottom: 50,
   },
   profileSection: {
     alignItems: 'center',
@@ -219,7 +320,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#F5A623',
+    backgroundColor: '#64748B',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 15,
@@ -295,9 +396,6 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     marginBottom: 15,
   },
-  loader: {
-    padding: 20,
-  },
   contactContainer: {
     marginTop: 5,
   },
@@ -358,12 +456,13 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   statusCard: {
+    paddingRight:25,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     paddingVertical: 15,
-    paddingHorizontal: 15,
+    paddingHorizontal: 20,
     marginBottom: 10,
     shadowColor: '#000',
     shadowOffset: {width: 0, height: 1},
@@ -400,7 +499,6 @@ const styles = StyleSheet.create({
   manageUsersContainer: {
     marginHorizontal: 20,
     marginTop: 24,
-    marginBottom: 40,
   },
   manageUsersButton: {
     backgroundColor: '#0F766E',
@@ -411,6 +509,44 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   manageUsersButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  // New styles for logout button
+  actionButtonsContainer: {
+    marginHorizontal: 20,
+    marginTop: 24,
+  },
+  logoutButton: {
+    backgroundColor: '#64748B',
+    borderRadius: 12,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    opacity: 0.9,
+  },
+  logoutButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  // New styles for delete account button
+  deleteAccountContainer: {
+    marginHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 40,
+  },
+  deleteAccountButton: {
+    backgroundColor: '#EF4444',
+    borderRadius: 12,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteAccountButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',

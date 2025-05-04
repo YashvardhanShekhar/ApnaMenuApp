@@ -11,15 +11,25 @@ import {
   TouchableWithoutFeedback,
   Image,
   SafeAreaView,
+  StatusBar,
 } from 'react-native';
 import {TextInput, HelperText} from 'react-native-paper';
 import Icon from 'react-native-vector-icons/Feather';
 import {Formik} from 'formik';
 import * as Yup from 'yup';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {useNavigation} from '@react-navigation/native';
-import { addNewRestaurant, restaurantUrlExists } from '../services/databaseManager';
-import { saveProfileInfo } from '../services/storageService';
+import * as NavigationService from '../services/navigationService';
+import {
+  addNewRestaurantDB,
+  restaurantUrlExists,
+  saveProfileInfoDB,
+} from '../services/databaseManager';
+import {
+  saveLinkedUsers,
+  saveProfileInfo,
+  saveUrl,
+} from '../services/storageService';
+import { checkInternet } from '../components/chechInternet';
 
 // Form validation schema
 const RestaurantRegistrationSchema = Yup.object().shape({
@@ -27,10 +37,11 @@ const RestaurantRegistrationSchema = Yup.object().shape({
     .min(3, 'Restaurant name must be at least 3 characters')
     .required('Restaurant name is required'),
   restaurantUrl: Yup.string()
+    .transform(value => value?.toLowerCase())
     .min(3, 'Restaurant URL must be at least 3 characters')
     .required('Restaurant URL is required')
     .matches(/^\S*$/, 'URL cannot contain spaces')
-    .matches(/^[^/]*$/, 'URL cannot contain forward slashes ei : \' / \'')
+    .matches(/^[^/]*$/, "URL cannot contain forward slashes ei : ' / '")
     .test('unique-url', 'URL is already taken', async url => {
       if (!url) return true;
       const isExists = await restaurantUrlExists(url);
@@ -39,51 +50,69 @@ const RestaurantRegistrationSchema = Yup.object().shape({
       }
       return true;
     }),
-  phoneNumber: Yup.string()
-    .matches(/^[0-9]{10}$/, 'Phone number must be 10 digits'),
-  address: Yup.string()
-    .min(5, 'Address is too short'),
+  phoneNumber: Yup.string().matches(
+    /^[0-9]{10}$/,
+    'Phone number must be 10 digits',
+  ),
+  address: Yup.string().min(5, 'Address is too short'),
 });
 
 const RestaurantRegistrationScreen = ({route}) => {
-  const navigation = useNavigation();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const nameInputRef = useRef(null);
-
 
   const email = route?.params?.email || '';
   const name = route?.params?.name || '';
 
-  const handleFormSubmit = async (values) => {
+  const handleFormSubmit = async values => {
     setIsSubmitting(true);
+    
+    const ci = await checkInternet();
+    if (!ci) {
+      setIsSubmitting(false);
+      return;
+    }
 
-    await addNewRestaurant(
+    const info: ProfileInformation = {
+      name: values.restaurantName,
+      phoneNumber: values.phoneNumber,
+      address: values.address,
+      description: '',
+    };
+
+    await addNewRestaurantDB(
       email,
       name,
-      values.restaurantName,
-      values.restaurantUrl,
+      values.restaurantUrl.toLowerCase(),
+      info,
     );
 
-    if( values.phoneNumber || values.address ){
-      const info: ProfileInformation = {
-        phoneNumber: values.phoneNumber ,
-        address: values.address,
-        description:null,
-      };
-      await saveProfileInfo(info)
-    }
+    const linkedUser: LinkedUsers = {
+      [email]: {
+        name: name,
+        email: email,
+      },
+    };
+
+    await saveProfileInfo(info);
+    await saveLinkedUsers(linkedUser);
+    await saveUrl(values.restaurantUrl);
+
+    NavigationService.reset('Home');
+
     setIsSubmitting(false);
   };
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <SafeAreaView style={styles.container}>
+        <StatusBar backgroundColor="#F8FAFC" barStyle="dark-content" />
         <View style={styles.header}>
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}>
             <Icon name="arrow-left" size={24} color="#0F172A" />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
           <Text style={styles.headerTitle}>Restaurant Registration </Text>
         </View>
 
@@ -153,7 +182,7 @@ const RestaurantRegistrationScreen = ({route}) => {
                   </View>
 
                   <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Restaurant URL</Text>
+                    <Text style={styles.inputLabel}>Restaurant URL </Text>
                     <TextInput
                       mode="outlined"
                       style={styles.input}
@@ -178,7 +207,7 @@ const RestaurantRegistrationScreen = ({route}) => {
                     <Text style={styles.urlPreview}>
                       URL will look like : apnamenu.vercel.app/
                       <Text style={styles.urlHighlight}>
-                        {values.restaurantUrl || 'yourrestaurant'}
+                        {values.restaurantUrl.toLowerCase() || 'yourrestaurant'}
                       </Text>
                     </Text>
                   </View>

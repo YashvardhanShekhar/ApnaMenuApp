@@ -11,16 +11,16 @@ import {
   Easing,
   Dimensions,
 } from 'react-native';
-import {useNavigation, StackActions} from '@react-navigation/native';
+import {StackActions} from '@react-navigation/native';
 import Feather from 'react-native-vector-icons/Feather';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import {handleSignIn} from '../services/authentication';
+import { checkInternet } from '../components/chechInternet';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function App() {
-  const navigation = useNavigation();
   const [loading, setLoading] = useState(false);
   const [darkTheme, setDarkTheme] = useState(false);
 
@@ -71,77 +71,6 @@ export default function App() {
     ]).start();
   }, []);
 
-  // Get random food set
-  const getRandomFoodSet = () => {
-    // Copy array and shuffle
-    const shuffled = [...indianFoodIcons].sort(() => 0.5 - Math.random());
-    // Get first 5 items
-    return shuffled.slice(0, 5);
-  };
-
-  // Loading animation sequence
-  useEffect(() => {
-    if (loading) {
-      // Select a random set of 5 food icons
-      setCurrentFoodSet(getRandomFoodSet());
-
-      // Show loading animation
-      Animated.timing(loadingOpacity, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-
-      // Animated food icons in sequence
-      const animateSequence = () => {
-        Animated.stagger(200, [
-          animateFood(food1Anim),
-          animateFood(food2Anim),
-          animateFood(food3Anim),
-          animateFood(food4Anim),
-          animateFood(food5Anim),
-        ]).start(() => {
-          // Reset values and repeat animation with new food set
-          food1Anim.setValue(0);
-          food2Anim.setValue(0);
-          food3Anim.setValue(0);
-          food4Anim.setValue(0);
-          food5Anim.setValue(0);
-
-          if (loading) {
-            setCurrentFoodSet(getRandomFoodSet());
-            setTimeout(animateSequence, 300);
-          }
-        });
-      };
-
-      animateSequence();
-    } else {
-      // Hide loading animation
-      Animated.timing(loadingOpacity, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start(() => {
-        // Reset all animation values
-        food1Anim.setValue(0);
-        food2Anim.setValue(0);
-        food3Anim.setValue(0);
-        food4Anim.setValue(0);
-        food5Anim.setValue(0);
-      });
-    }
-  }, [loading]);
-
-  // Function to animate each food icon
-  const animateFood = animValue => {
-    return Animated.timing(animValue, {
-      toValue: 1,
-      duration: 1500,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    });
-  };
 
   const onPressIn = () => {
     Animated.spring(buttonScale, {
@@ -159,46 +88,26 @@ export default function App() {
 
   const SignIn = async () => {
     setLoading(true);
-    await handleSignIn(navigation);
+    const ci = await checkInternet();
+    if (!ci) {
+      setLoading(false);
+      return;
+    }
+    await handleSignIn();
     setLoading(false);
   };
 
-  const toggleTheme = () => {
-    setDarkTheme(prev => !prev);
-  };
 
-  const themeStyles = darkTheme ? darkThemeStyles : lightThemeStyles;
-
-  // Function to render food icon based on type
-  const renderFoodIcon = (icon, size) => {
-    if (icon.type === 'FontAwesome5') {
-      return <FontAwesome5 name={icon.name} size={size} color="#000" />;
-    } else {
-      return (
-        <MaterialCommunityIcons name={icon.name} size={size} color="#000" />
-      );
-    }
-  };
 
   return (
-    <View style={[styles.container, themeStyles.container]}>
+    <View style={styles.container}>
       <StatusBar
         barStyle={darkTheme ? 'light-content' : 'dark-content'}
         backgroundColor={darkTheme ? '#1d1d1d' : '#F4F5F7'}
       />
-
-      <TouchableOpacity style={styles.bulbContainer} onPress={toggleTheme}>
-        <Feather
-          name={darkTheme ? 'sun' : 'moon'}
-          size={28}
-          color={darkTheme ? '#FFD700' : '#222'}
-        />
-      </TouchableOpacity>
-
       <Animated.Text
         style={[
           styles.logo,
-          themeStyles.text,
           {opacity: fadeAnim, transform: [{translateY: slideAnim}]},
         ]}>
         🍽️ ApnaMenu
@@ -207,7 +116,6 @@ export default function App() {
       <Animated.Text
         style={[
           styles.heading,
-          themeStyles.text,
           {opacity: fadeAnim, transform: [{translateY: slideAnim}]},
         ]}>
         HELLO AND WELCOME!{'\n'}LET'S GET YOU STARTED!
@@ -226,149 +134,10 @@ export default function App() {
         </Pressable>
       </Animated.View>
 
-      {/* Custom Indian Food Loading Animation - at the bottom of the screen */}
       <Animated.View
         style={[styles.loadingContainer, {opacity: loadingOpacity}]}>
-        {/* Row of food icons at the bottom */}
-        {currentFoodSet.length > 0 && (
-          <>
-            <Animated.View
-              style={[
-                styles.foodIcon,
-                {
-                  transform: [
-                    {
-                      translateY: food1Anim.interpolate({
-                        inputRange: [0, 0.5, 1],
-                        outputRange: [0, -20, 0],
-                      }),
-                    },
-                    {
-                      translateX: food1Anim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0, -10],
-                      }),
-                    },
-                  ],
-                  opacity: food1Anim.interpolate({
-                    inputRange: [0, 0.1, 0.9, 1],
-                    outputRange: [0, 1, 1, 0],
-                  }),
-                },
-              ]}>
-              {renderFoodIcon(currentFoodSet[0], 24)}
-              {/* <Text style={styles.iconLabel}>{currentFoodSet[0].label}</Text> */}
-            </Animated.View>
-
-            <Animated.View
-              style={[
-                styles.foodIcon,
-                {
-                  transform: [
-                    {
-                      translateY: food2Anim.interpolate({
-                        inputRange: [0, 0.5, 1],
-                        outputRange: [0, -30, 0],
-                      }),
-                    },
-                    {
-                      translateX: food2Anim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0, -5],
-                      }),
-                    },
-                  ],
-                  opacity: food2Anim.interpolate({
-                    inputRange: [0, 0.1, 0.9, 1],
-                    outputRange: [0, 1, 1, 0],
-                  }),
-                },
-              ]}>
-              {renderFoodIcon(currentFoodSet[1], 24)}
-              {/* <Text style={styles.iconLabel}>{currentFoodSet[1].label}</Text> */}
-            </Animated.View>
-
-            <Animated.View
-              style={[
-                styles.foodIcon,
-                {
-                  transform: [
-                    {
-                      translateY: food3Anim.interpolate({
-                        inputRange: [0, 0.5, 1],
-                        outputRange: [0, -40, 0],
-                      }),
-                    },
-                  ],
-                  opacity: food3Anim.interpolate({
-                    inputRange: [0, 0.1, 0.9, 1],
-                    outputRange: [0, 1, 1, 0],
-                  }),
-                },
-              ]}>
-              {renderFoodIcon(currentFoodSet[2], 24)}
-              {/* <Text style={styles.iconLabel}>{currentFoodSet[2].label}</Text> */}
-            </Animated.View>
-
-            <Animated.View
-              style={[
-                styles.foodIcon,
-                {
-                  transform: [
-                    {
-                      translateY: food4Anim.interpolate({
-                        inputRange: [0, 0.5, 1],
-                        outputRange: [0, -30, 0],
-                      }),
-                    },
-                    {
-                      translateX: food4Anim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0, 5],
-                      }),
-                    },
-                  ],
-                  opacity: food4Anim.interpolate({
-                    inputRange: [0, 0.1, 0.9, 1],
-                    outputRange: [0, 1, 1, 0],
-                  }),
-                },
-              ]}>
-              {renderFoodIcon(currentFoodSet[3], 24)}
-              {/* <Text style={styles.iconLabel}>{currentFoodSet[3].label}</Text> */}
-            </Animated.View>
-
-            <Animated.View
-              style={[
-                styles.foodIcon,
-                {
-                  transform: [
-                    {
-                      translateY: food5Anim.interpolate({
-                        inputRange: [0, 0.5, 1],
-                        outputRange: [0, -20, 0],
-                      }),
-                    },
-                    {
-                      translateX: food5Anim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0, 10],
-                      }),
-                    },
-                  ],
-                  opacity: food5Anim.interpolate({
-                    inputRange: [0, 0.1, 0.9, 1],
-                    outputRange: [0, 1, 1, 0],
-                  }),
-                },
-              ]}>
-              {renderFoodIcon(currentFoodSet[4], 24)}
-              {/* <Text style={styles.iconLabel}>{currentFoodSet[4].label}</Text> */}
-            </Animated.View>
-          </>
-        )}
-
-        <Text style={[styles.loadingText, themeStyles.loadingText]}>
+        
+        <Text style={[styles.loadingText]}>
           wait we are fetching your details ...
         </Text>
       </Animated.View>
@@ -380,15 +149,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',
-    padding: 20,
     justifyContent: 'center',
-  },
-  bulbContainer: {
-    position: 'absolute',
-    top: 20,
-    right: 16,
-    padding: 8,
-    zIndex: 10,
+    padding: 20,
   },
   logo: {
     fontSize: 24,
@@ -404,41 +166,24 @@ const styles = StyleSheet.create({
   googleButton: {
     backgroundColor: '#4285F4',
     paddingVertical: 14,
-    paddingHorizontal: 32,
     borderRadius: 12,
-    marginBottom: 20,
     width: '100%',
     alignItems: 'center',
   },
   googleButtonDisabled: {
-    backgroundColor: '#7baaf7', // Lighter blue when disabled
+    backgroundColor: '#7baaf7',
   },
   googleButtonText: {
     color: '#fff',
     fontWeight: '700',
     fontSize: 16,
   },
-  // Food loading animation styles
   loadingContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    alignItems: 'flex-end',
     position: 'absolute',
     bottom: 80,
     width: SCREEN_WIDTH,
-    paddingHorizontal: 10,
-  },
-  foodIcon: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginHorizontal: 2,
-    width: 60,
-  },
-  iconLabel: {
-    fontSize: 10,
-    marginTop: 4,
-    textAlign: 'center',
-    color: '#000',
   },
   loadingText: {
     position: 'absolute',
@@ -447,30 +192,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 14,
     fontWeight: '500',
-    color: '#000',
-  },
-});
-
-const lightThemeStyles = StyleSheet.create({
-  container: {
-    backgroundColor: '#F4F5F7',
-  },
-  text: {
-    color: '#1d1d1d',
-  },
-  loadingText: {
-    color: '#333',
-  },
-});
-
-const darkThemeStyles = StyleSheet.create({
-  container: {
-    backgroundColor: '#1d1d1d',
-  },
-  text: {
-    color: '#F4F5F7',
-  },
-  loadingText: {
-    color: '#F4F5F7',
   },
 });

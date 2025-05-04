@@ -13,6 +13,7 @@ import MenuScreen from '../screens/MenuScreen';
 import AddDish from '../screens/AddDish';
 import ProfileScreen from '../screens/ProfileScreen';
 import EditInfo from '../screens/EditInfoScreen';
+import DeleteAccountScreen from '../screens/AccountDeletionScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -37,6 +38,10 @@ const ProfileNavigator = () => {
       <Stack.Screen
         name="LinkedUsers"
         component={LinkedUsersScreen as React.ComponentType}
+      />
+      <Stack.Screen
+        name="AccountDeletion"
+        component={DeleteAccountScreen as React.ComponentType}
       />
     </Stack.Navigator>
   );

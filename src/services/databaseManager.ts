@@ -4,7 +4,7 @@ import firestore from '@react-native-firebase/firestore';
 import Snackbar from 'react-native-snackbar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const addNewDish = async (
+export const addNewDishDB = async (
   category: string,
   name: string,
   price: number,
@@ -200,11 +200,11 @@ export const restaurantUrlExists = async (url: string): Promise<boolean> => {
   return false;
 };
 
-export const addNewRestaurant = async (
+export const addNewRestaurantDB = async (
   email: string,
   name: string,
-  restaurantName: string,
   restaurantUrl: string,
+  info: ProfileInformation,
 ) => {
   try {
     const isExists = await restaurantUrlExists(restaurantUrl);
@@ -217,10 +217,10 @@ export const addNewRestaurant = async (
       .doc(restaurantUrl as string)
       .set(
         {
-          name: restaurantName,
-          linkedUser: {
+          linkedUsers: {
             [email]: {email: email, name: name},
           },
+          info: info,
         },
         {merge: true},
       )
@@ -250,6 +250,26 @@ export const addNewUser = async (email: string, restaurantUrl: string) => {
       url: restaurantUrl,
     });
 };
+
+export const deleteUsers = async (data:LinkedUsers) => {
+  try {
+    Object.keys(data).forEach( async (email)=>{
+      await firestore()
+        .collection('users')
+        .doc(email)
+        .delete()
+    })
+    Snackbar.show({
+      text:'selected users were deleted',
+      duration:Snackbar.LENGTH_SHORT,
+    })
+  } catch (error: any) {
+    Snackbar.show({
+      text: error.message,
+      duration: Snackbar.LENGTH_SHORT,
+    });
+  }
+}
 
 export const fetchAllData = async (url: string) => {
   try {
@@ -318,25 +338,26 @@ export const emailExists = async (email: string): Promise<boolean> => {
   }
 };
 
-export const saveLinkedUsersDB = async (data:LinkedUsers) => {
+export const saveLinkedUsersDB = async (data: LinkedUsers) => {
   try {
-    const url = await AsyncStorage.getItem('url');
-    if (!url) {
+    const restaurantUrl = await AsyncStorage.getItem('url');
+    if (!restaurantUrl) {
       throw new Error('URL not found in Storage');
     }
+    Object.keys(data).forEach(async email => {
+      await addNewUser(email, restaurantUrl);
+    });
 
     await firestore()
       .collection('restaurants')
-      .doc(url as string)
-      .set(
-        {
-          linkedUsers: data,
-        },
-      )
+      .doc(restaurantUrl as string)
+      .update({
+        linkedUsers: data,
+      })
       .then(() => {
         Snackbar.show({
-          text: 'Profile details updated',
-          duration: Snackbar.LENGTH_SHORT,
+          text: 'Users updated',
+          duration: Snackbar.DISMISS_EVENT_CONSECUTIVE,
           action: {
             text: 'OK',
             textColor: '#0F766E',
@@ -346,7 +367,24 @@ export const saveLinkedUsersDB = async (data:LinkedUsers) => {
   } catch (error: any) {
     Snackbar.show({
       text: error.message,
-      duration: Snackbar.LENGTH_SHORT,
+      duration: Snackbar.DISMISS_EVENT_SWIPE,
+    });
+  }
+};
+
+export const deleteAccountPermanently = async(email:string,url:string) => {
+  try{
+    await firestore().collection('users').doc(email).delete();
+    await firestore().collection('restaurants').doc(url).delete();
+    Snackbar.show({
+      text: url+" has been deleted Permanently",
+      duration:Snackbar.LENGTH_LONG,
+    })
+  } catch (error){
+    console.log(error)
+    Snackbar.show({
+      text: 'some error has occurred try again',
+      duration: Snackbar.LENGTH_LONG,
     });
   }
 }

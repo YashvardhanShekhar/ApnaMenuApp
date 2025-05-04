@@ -1,50 +1,32 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import {
+  StyleSheet,
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
   ScrollView,
   SafeAreaView,
+  ActivityIndicator,
+  RefreshControl,
   TextInput,
   StatusBar,
+  Alert,
 } from 'react-native';
-import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Feather';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Animatable from 'react-native-animatable';
-import {Button, Portal, Dialog} from 'react-native-paper';
-import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
-import Snackbar from 'react-native-snackbar';
+import {useIsFocused} from '@react-navigation/native';
 import {
-  addNewDish,
-  deleteDish,
-  setAvailability,
-} from '../services/databaseManager';
-
-type RouteParams = {
-  updatedDish?: {
-    id: number;
-    category: string;
-    name: string;
-    price: number;
-    status: boolean;
-  };
-};
-
-type NavigationProps = {
-  navigate: (
-    screen: string,
-    params: {
-      category: string;
-      isNewDish: boolean;
-      itemId: number;
-      name: string;
-      price: number;
-      status: boolean;
-    },
-  ) => void;
-};
+  fetchMenu,
+  saveMenu,
+  saveStats,
+  syncData,
+} from '../services/storageService';
+import * as NavigationService from '../services/navigationService';
+import {checkInternet} from '../components/chechInternet';
+import {deleteDish, setAvailability} from '../services/databaseManager';
+import RNHapticFeedback from 'react-native-haptic-feedback';
+import {Haptic} from '../components/haptics';
 
 interface MenuItem {
   name: string;
@@ -54,196 +36,231 @@ interface MenuItem {
 
 type MenuItems = Record<string, Record<string, MenuItem>>;
 
-const MenuScreen: React.FC = () => {
-  const navigation = useNavigation<NavigationProps>();
-  const route = useRoute<RouteProp<{params: RouteParams}, 'params'>>();
+const MenuItemsScreen = () => {
+  const isFocused = useIsFocused();
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [menuItems, setMenuItems] = useState<Menu>({});
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [availabilityFilter, setAvailabilityFilter] = useState('all'); // 'all', 'available', 'soldout'
 
-  const [user, setUser] = useState<any>({
-    name: 'Tony',
-    email: 'Tony@gmail.com',
-  });
+  // States for expandable categories
+  const [expandedCategories, setExpandedCategories] = useState<
+    Record<string, boolean>
+  >({});
+  const [allExpanded, setAllExpanded] = useState(false);
 
-  // State for delete confirmation
-  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<{
-    category: string;
-    item: string;
-  } | null>(null);
+  // State for long press detection
+  const [longPressedItem, setLongPressedItem] = useState<string | null>(null);
 
-  // // State for add category dialog
-  const [addCategoryModalVisible, setAddCategoryModalVisible] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState('');
-  const [categoryError, setCategoryError] = useState('');
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      const userData = await AsyncStorage.getItem('user');
-      const res = await AsyncStorage.getItem('menu');
-      const menu = JSON.parse(res);
-      if (menu) {
-        console.log(menu);
-        setMenuItems(menu);
-        setUser(JSON.parse(userData));
-      } else {
-        console.log('------     ------');
-        console.log(menuItems);
-      }
-    };
-    fetchUser();
+  // Handle refresh
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    const ci = await checkInternet();
+    if (!ci) {
+      setRefreshing(false);
+      return;
+    }
+    await syncData();
+    await loadMenuItems();
+    setRefreshing(false);
   }, []);
 
-  const [menuItems, setMenuItems] = useState<MenuItems>({});
-
-  // State to track which categories are expanded or collapsed
-  const [expandedCategories, setExpandedCategories] = useState<{
-    [key: string]: boolean;
-  }>(() => {
-    // Initialize all categories as expanded
-    const expanded: {[key: string]: boolean} = {};
-    Object.keys(menuItems).forEach(category => {
-      expanded[category] = true;
-    });
-    return expanded;
-  });
-
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const addDishInMenu = async (
-    category: string,
-    dishName: string,
-    price: number,
-  ) => {
-    setMenuItems(() => {
-      const prev = {...menuItems};
-      if (!prev[category]) {
-        prev[category] = {};
+  const loadMenuItems = async () => {
+    try {
+      setRefreshing(true);
+      const menu:Menu = await fetchMenu();
+      if (menu) {
+        setMenuItems(menu);
+        loadStats();
+        // Initialize all categories as expanded
+        const initialExpandState: Record<string, boolean> = {};
+        Object.keys(menu).forEach(category => {
+          initialExpandState[category] = false;
+        });
+        setExpandedCategories(initialExpandState);
       }
-      prev[category][dishName] = {
-        name: dishName,
-        price: price,
-        status: true,
-      };
-      return prev;
-    });
-    await AsyncStorage.setItem('menu', JSON.stringify(menuItems));
-  };
-
-  const handleAddDish = (category: string) => {
-    navigation.navigate('AddDish', {
-      category,
-      addDishInMenu,
-      isNewDish: true,
-      itemId: Date.now(),
-      price: 0,
-      status: true,
-      name: '',
-    });
-  };
-
-  const handleLongPress = (category: string, item: string) => {
-    ReactNativeHapticFeedback.trigger('impactMedium', {
-      enableVibrateFallback: true,
-    });
-    setItemToDelete({category, item});
-    setDeleteModalVisible(true);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (itemToDelete) {
-      const {category, item} = itemToDelete;
-
-      await deleteDish(category, item);
-
-      setMenuItems(prevMenuItems => {
-        const updatedMenu = {...prevMenuItems};
-        delete updatedMenu[category][item];
-
-        if (Object.keys(updatedMenu[category]).length === 0) {
-          delete updatedMenu[category];
-        }
-        return updatedMenu;
-      });
-
-      await AsyncStorage.setItem('menu', JSON.stringify(menuItems));
-
-      setDeleteModalVisible(false);
-      setItemToDelete(null);
+    } catch (error) {
+      console.error('Error loading menu items:', error);
+    } finally {
+      setRefreshing(false);
     }
   };
 
-  const toggleCategory = (category: string) => {
+  useEffect(() => {
+    if (isFocused) {
+      loadMenuItems();
+    }
+  }, [isFocused]);
+
+  const getFilteredItems = () => {
+    let filteredMenu = {...menuItems};
+
+    // Filter by search query
+    if (searchQuery) {
+      const result: MenuItems = {};
+
+      Object.keys(menuItems).forEach(category => {
+        const filteredItems: Record<string, MenuItem> = {};
+
+        Object.keys(menuItems[category]).forEach(itemKey => {
+          const item = menuItems[category][itemKey];
+          if (item.name.toLowerCase().includes(searchQuery.toLowerCase())) {
+            filteredItems[itemKey] = item;
+          }
+        });
+
+        if (Object.keys(filteredItems).length > 0) {
+          result[category] = filteredItems;
+        }
+      });
+
+      filteredMenu = result;
+    }
+
+    // Filter by category
+    if (categoryFilter !== 'all') {
+      const result: MenuItems = {};
+      if (filteredMenu[categoryFilter]) {
+        result[categoryFilter] = filteredMenu[categoryFilter];
+      }
+      filteredMenu = result;
+    }
+
+    // Filter by availability
+    if (availabilityFilter !== 'all') {
+      const isAvailable = availabilityFilter === 'available';
+      const result: MenuItems = {};
+
+      Object.keys(filteredMenu).forEach(category => {
+        const filteredItems: Record<string, MenuItem> = {};
+
+        Object.keys(filteredMenu[category]).forEach(itemKey => {
+          const item = filteredMenu[category][itemKey];
+          if (item.status === isAvailable) {
+            filteredItems[itemKey] = item;
+          }
+        });
+
+        if (Object.keys(filteredItems).length > 0) {
+          result[category] = filteredItems;
+        }
+      });
+
+      filteredMenu = result;
+    }
+
+    return filteredMenu;
+  };
+
+  const filteredItems = getFilteredItems();
+
+  const loadStats = async () => {
+    // Calculate menu item statistics
+
+    const totalItems = Object.keys(menuItems).reduce(
+      (total, category) => total + Object.keys(menuItems[category]).length,
+      0,
+    );
+
+    const availableItems = Object.keys(menuItems).reduce(
+      (total, category) =>
+        total +
+        Object.keys(menuItems[category]).filter(
+          item => menuItems[category][item].status,
+        ).length,
+      0,
+    );
+
+    const soldOutItems = totalItems - availableItems;
+    await saveStats(totalItems, availableItems, soldOutItems);
+  };
+
+  const handleAddDish = (category: string) => {
+    NavigationService.navigate('AddDish', {
+      category,
+    });
+  };
+
+  // Toggle single category expansion
+  const toggleCategoryExpansion = (category: string) => {
     setExpandedCategories(prev => ({
       ...prev,
       [category]: !prev[category],
     }));
   };
 
-  const getFilteredItems = () => {
-    if (!searchQuery) return menuItems;
+  // Toggle all categories expansion
+  const toggleAllCategories = () => {
+    const newExpandedState = !allExpanded;
+    setAllExpanded(newExpandedState);
 
-    const result: MenuItems = {};
-
-    Object.keys(menuItems).forEach(category => {
-      const filteredItems: Record<string, MenuItem> = {};
-
-      Object.keys(menuItems[category]).forEach(dishKey => {
-        const dish = menuItems[category][dishKey];
-        if (dish.name.toLowerCase().includes(searchQuery.toLowerCase())) {
-          filteredItems[dishKey] = dish;
-        }
-      });
-
-      // Only add the category if it has matching items
-      if (Object.keys(filteredItems).length > 0) {
-        result[category] = filteredItems;
-      }
+    const updatedExpandedCategories: Record<string, boolean> = {};
+    Object.keys(filteredItems).forEach(category => {
+      updatedExpandedCategories[category] = newExpandedState;
     });
 
-    return result;
+    setExpandedCategories(updatedExpandedCategories);
   };
 
-  const filteredMenuItems = searchQuery ? getFilteredItems() : menuItems;
+  // Handle delete item
+  const handleDelete = async (category: string, item: string) => {
+    await deleteDish(category, item);
 
-  const isAnyModalVisible = deleteModalVisible || addCategoryModalVisible;
+    setMenuItems(prevMenuItems => {
+      const updatedMenu = {...prevMenuItems};
+      delete updatedMenu[category][item];
+
+      if (Object.keys(updatedMenu[category]).length === 0) {
+        delete updatedMenu[category];
+      }
+      return updatedMenu;
+    });
+
+    await saveMenu(menuItems);
+
+    setLongPressedItem(null);
+  };
 
   const toggleAvailability = async (category: string, name: string) => {
     const tempMenu = {...menuItems};
-    setAvailability(category, name, !menuItems[category][name].status);
-    console.log('--------------');
     tempMenu[category][name].status = !menuItems[category][name].status;
     setMenuItems(tempMenu);
-    await AsyncStorage.setItem('menu', JSON.stringify(menuItems));
-    ReactNativeHapticFeedback.trigger('impactLight', {
-      enableVibrateFallback: true,
-    });
+    Haptic();
+    await saveMenu(menuItems);
+    await setAvailability(category, name, !menuItems[category][name].status);
+    await loadStats();
   };
+
+  // Reset long pressed item when filters change
+  useEffect(() => {
+    setLongPressedItem(null);
+  }, [searchQuery, availabilityFilter, categoryFilter]);
 
   return (
     <SafeAreaView style={styles.container}>
-      {isAnyModalVisible ? (
-        <StatusBar
-          backgroundColor="rgba(109, 117, 136, 0.6)"
-          barStyle="dark-content"
-        />
-      ) : (
-        <StatusBar backgroundColor="#fff" barStyle="dark-content" />
-      )}
-      <ScrollView keyboardShouldPersistTaps="handled">
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.welcome}>Hi, {user.name}! 👋</Text>
-        </View>
+      <StatusBar backgroundColor="#FFFFFF" barStyle="dark-content" />
 
-        {/* Titles */}
-        <Text style={styles.title}>Find your best food</Text>
-        <Text style={styles.subtitle}>Order & Eat. 😎</Text>
+      <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }>
+        {/* Profile Info */}
+        <View style={styles.headerSection}>
+          <Text style={styles.headerTitle}>Menu Items</Text>
+          <Text style={styles.headerSubtitle}>
+            Manage your restaurant menu items
+          </Text>
+        </View>
 
         {/* Search Bar */}
         <View style={styles.searchBar}>
-          <Icon name="search" size={20} color="#999" style={{marginLeft: 10}} />
+          <Icon name="search" size={19} color="#999" style={{marginLeft: 9}} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search your food"
+            placeholder="Search menu items"
+            placeholderTextColor="#94A3B8"
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
@@ -251,377 +268,497 @@ const MenuScreen: React.FC = () => {
             <Icon
               name="x"
               onPress={() => setSearchQuery('')}
-              size={20}
+              size={19}
               color="#999"
-              style={{marginRight: 10}}
+              style={{marginRight: 9}}
             />
           )}
         </View>
 
-        <View style={styles.categoriesContainer}>
-          {Object.keys(filteredMenuItems).map(category => (
-            <View key={category} style={styles.categorySection}>
-              <TouchableOpacity
-                activeOpacity={0.5}
-                style={styles.categoryHeader}
-                onPress={() => toggleCategory(category)}>
-                <View style={styles.categoryTitleContainer}>
-                  {/* <Text style={styles.categoryIcon}>
-                    {icons[category as keyof typeof icons] || '📋'}
-                  </Text> */}
-                  <Text style={styles.categoryTitle}>{category}</Text>
-                </View>
-                <View style={styles.categoryHeaderRight}>
-                  <TouchableOpacity
-                    style={styles.addDishSmallButton}
-                    onPress={() => handleAddDish(category)}>
-                    <Icon name="plus-circle" size={20} color="#0F766E" />
-                  </TouchableOpacity>
-                  <Icon
-                    name={
-                      expandedCategories[category]
-                        ? 'chevron-up'
-                        : 'chevron-down'
-                    }
-                    size={24}
-                    color="#0F172A"
-                    style={{marginLeft: 10}}
-                  />
-                </View>
-              </TouchableOpacity>
-
-              {expandedCategories[category] && (
-                <View style={styles.itemsContainer}>
-                  {Object.keys(filteredMenuItems[category]).map(item => (
-                    <Animatable.View
-                      key={item}
-                      animation="fadeIn"
-                      duration={400}>
-                      <TouchableOpacity
-                        activeOpacity={0.8}
-                        style={styles.card}
-                        onLongPress={() => handleLongPress(category, item)}
-                        delayLongPress={300}>
-                        <View style={{flex: 1}}>
-                          <Text style={styles.foodName}>
-                            {filteredMenuItems[category][item].name}
-                          </Text>
-                          <Text style={styles.foodPrice}>
-                            ₹{filteredMenuItems[category][item].price}
-                          </Text>
-                        </View>
-
-                        <TouchableOpacity
-                          style={[
-                            styles.availabilityButton,
-                            {
-                              backgroundColor: filteredMenuItems[category][item]
-                                .status
-                                ? '#D1FAE5'
-                                : '#FEE2E2',
-                            },
-                          ]}
-                          onPress={() => {
-                            toggleAvailability(category, item);
-                          }}>
-                          <Text
-                            style={{
-                              color: filteredMenuItems[category][item].status
-                                ? '#047857'
-                                : '#DC2626',
-                              fontWeight: '600',
-                            }}>
-                            {filteredMenuItems[category][item].status
-                              ? 'Available'
-                              : 'Sold Out'}
-                          </Text>
-                        </TouchableOpacity>
-                      </TouchableOpacity>
-                    </Animatable.View>
-                  ))}
-                </View>
-              )}
-            </View>
-          ))}
-          <View style={styles.categorySection}>
-            <TouchableOpacity activeOpacity={0.5} style={styles.categoryHeader}>
-              <View style={styles.categoryTitleContainer}>
-                <Text style={styles.categoryTitle}>Add New Dish Category</Text>
-              </View>
-              <View style={styles.categoryHeaderRight}>
-                <TouchableOpacity
-                  style={styles.addDishSmallButton}
-                  onPress={() => handleAddDish(null)}>
-                  <Icon name="plus-circle" size={20} color="#0F766E" />
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </ScrollView>
-
-      <Portal>
-        <Dialog
-          visible={deleteModalVisible}
-          onDismiss={() => setDeleteModalVisible(false)}
-          style={styles.dialog}>
-          <Dialog.Title style={styles.dialogTitle}>Delete Item</Dialog.Title>
-          <Dialog.Content>
-            <Text style={styles.dialogContent}>
-              Are you sure you want to delete{' '}
-              <Text style={{fontWeight: '700'}}>{itemToDelete?.item}</Text>?
-            </Text>
-          </Dialog.Content>
-          <Dialog.Actions style={styles.dialogActions}>
-            <Button
-              mode="text"
-              textColor="#64748B"
-              onPress={() => setDeleteModalVisible(false)}>
-              Cancel
-            </Button>
-            <Button
-              mode="text"
-              buttonColor="#EF4444"
-              textColor="#fff"
-              onPress={handleDeleteConfirm}>
-              Delete
-            </Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
-
-      {/* Add Category Dialog */}
-      <Portal>
-        <Dialog
-          visible={addCategoryModalVisible}
-          onDismiss={() => setAddCategoryModalVisible(false)}
-          style={styles.dialog}>
-          <Dialog.Title style={styles.dialogTitle}>
-            Add New Category
-          </Dialog.Title>
-          <Dialog.Content>
-            <Text style={styles.dialogLabel}>Category Name</Text>
-            <TextInput
+        {/* Filter Options with Expand/Collapse Toggle */}
+        <View style={styles.filterSection}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <TouchableOpacity
               style={[
-                styles.dialogInput,
-                categoryError ? styles.dialogInputError : null,
+                styles.filterButton,
+                availabilityFilter === 'all' && styles.filterButtonActive,
               ]}
-              value={newCategoryName}
-              onChangeText={text => {
-                setNewCategoryName(text);
-                setCategoryError('');
-              }}
-              placeholder="Enter category name"
-              autoFocus
-            />
-            {categoryError ? (
-              <Text style={styles.errorText}>{categoryError}</Text>
-            ) : null}
-          </Dialog.Content>
-          <Dialog.Actions style={styles.dialogActions}>
-            <Button
-              mode="text"
-              textColor="#64748B"
-              onPress={() => {
-                setAddCategoryModalVisible(false);
-                setCategoryError('');
-              }}>
-              Cancel
-            </Button>
-            <Button
-              mode="text"
-              buttonColor="#0F766E"
-              textColor="#fff"
-              disabled={!newCategoryName.trim()}
-              // onPress={handleAddCategoryConfirm}
-            >
-              Add
-            </Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
+              onPress={() => setAvailabilityFilter('all')}>
+              <Text
+                style={[
+                  styles.filterButtonText,
+                  availabilityFilter === 'all' && styles.filterButtonTextActive,
+                ]}>
+                All Items
+              </Text>
+            </TouchableOpacity>
 
-      {/* Blurred Background when Modal is Active */}
-      {isAnyModalVisible && (
-        <Animatable.View
-          animation="fadeIn"
-          duration={200}
-          style={styles.blurOverlay}
-        />
-      )}
+            <TouchableOpacity
+              style={[
+                styles.filterButton,
+                availabilityFilter === 'available' && styles.filterButtonActive,
+              ]}
+              onPress={() => setAvailabilityFilter('available')}>
+              <Text
+                style={[
+                  styles.filterButtonText,
+                  availabilityFilter === 'available' &&
+                    styles.filterButtonTextActive,
+                ]}>
+                Available
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.filterButton,
+                availabilityFilter === 'soldout' && styles.filterButtonActive,
+              ]}
+              onPress={() => setAvailabilityFilter('soldout')}>
+              <Text
+                style={[
+                  styles.filterButtonText,
+                  availabilityFilter === 'soldout' &&
+                    styles.filterButtonTextActive,
+                ]}>
+                Sold Out
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.expandCollapseButton}
+              onPress={toggleAllCategories}>
+              <Text> </Text>
+              <Icon
+                name={allExpanded ? 'minimize-2' : 'maximize-2'}
+                size={18}
+                color="#0F766E"
+              />
+              <Text> </Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+
+        {/* Menu Items List */}
+        <View style={styles.menuItemsContainer}>
+          {Object.keys(filteredItems).length === 0 ? (
+            <View style={styles.emptyStateContainer}>
+              <Icon name="alert-circle" size={48} color="#94A3B8" />
+              <Text style={styles.emptyStateText}>No menu items found</Text>
+              <Text style={styles.emptyStateSubtext}>
+                Try changing your search or filters
+              </Text>
+            </View>
+          ) : (
+            Object.keys(filteredItems).map(category => (
+              <View key={category} style={styles.categorySection}>
+                <TouchableOpacity
+                  style={styles.categoryHeader}
+                  onPress={() => toggleCategoryExpansion(category)}>
+                  <View style={styles.categoryTitleContainer}>
+                    <Text style={styles.categoryTitle}>{category}</Text>
+                    <Text style={styles.itemCountBadge}>
+                      {Object.keys(filteredItems[category]).length} items
+                    </Text>
+                  </View>
+                  <View style={styles.categoryTitleContainer}>
+                    <TouchableOpacity
+                      style={styles.addDishSmallButton}
+                      onPress={() => handleAddDish(category)}>
+                      <Icon name="plus-circle" size={20} color="#0F766E" />
+                    </TouchableOpacity>
+                    <Icon
+                      name={
+                        expandedCategories[category]
+                          ? 'chevron-up'
+                          : 'chevron-down'
+                      }
+                      size={20}
+                      color="#0F172A"
+                    />
+                  </View>
+                </TouchableOpacity>
+
+                {expandedCategories[category] && (
+                  <Animatable.View
+                    animation="fadeIn"
+                    duration={300}
+                    style={styles.itemsContainer}>
+                    {Object.keys(filteredItems[category]).map(itemKey => {
+                      const item = filteredItems[category][itemKey];
+                      const itemId = `${category}-${itemKey}`;
+                      const isLongPressed = longPressedItem === itemId;
+
+                      return (
+                        <Animatable.View
+                          key={itemId}
+                          animation="fadeIn"
+                          duration={400}>
+                          <TouchableOpacity
+                            activeOpacity={0.8}
+                            style={[
+                              styles.itemCard,
+                              item.status
+                                ? styles.availableCardBadge
+                                : styles.soldOutCardBadge,
+                              isLongPressed && styles.itemCardLongPressed,
+                            ]}
+                            onPress={() => {
+                              setLongPressedItem(null);
+                            }}
+                            onLongPress={() => setLongPressedItem(itemId)}
+                            delayLongPress={500}>
+                            <View style={styles.itemDetails}>
+                              <Text
+                                style={[
+                                  styles.itemName,
+                                  isLongPressed && styles.fadedText,
+                                ]}>
+                                {item.name}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.itemPrice,
+                                  isLongPressed && styles.fadedText,
+                                ]}>
+                                ₹{item.price}
+                              </Text>
+                            </View>
+
+                            {isLongPressed ? (
+                              <TouchableOpacity
+                                style={styles.deleteButton}
+                                onPress={() =>
+                                  handleDelete(category, item.name)
+                                }>
+                                <Icon
+                                  name="trash-2"
+                                  size={20}
+                                  color="#DC2626"
+                                />
+                              </TouchableOpacity>
+                            ) : (
+                              <TouchableOpacity
+                                onPress={() => {
+                                  toggleAvailability(category, item.name);
+                                }}
+                                style={[
+                                  styles.statusBadge,
+                                  item.status
+                                    ? styles.availableBadge
+                                    : styles.soldOutBadge,
+                                ]}>
+                                <Text
+                                  style={[
+                                    styles.statusText,
+                                    item.status
+                                      ? styles.availableText
+                                      : styles.soldOutText,
+                                  ]}>
+                                  {item.status ? 'Available' : 'Sold Out'}
+                                </Text>
+                              </TouchableOpacity>
+                            )}
+                          </TouchableOpacity>
+                        </Animatable.View>
+                      );
+                    })}
+                  </Animatable.View>
+                )}
+              </View>
+            ))
+          )}
+        </View>
+
+        {/* Add Menu Item Button */}
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => {
+            handleAddDish(null);
+          }}>
+          <Icon name="plus-circle" size={24} color="#FFF" />
+          <Text style={styles.addButtonText}>Add New Menu Item</Text>
+        </TouchableOpacity>
+      </ScrollView>
     </SafeAreaView>
   );
 };
 
-export default MenuScreen;
-
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: '#fff'},
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    margin: 20,
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    paddingBottom: 80,
   },
-  welcome: {fontSize: 18, fontWeight: '600', color: '#1E293B'},
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    marginHorizontal: 20,
+  headerSection: {
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
     color: '#0F172A',
+    marginBottom: 6,
   },
-  subtitle: {
-    fontSize: 18,
+  headerSubtitle: {
+    fontSize: 16,
     color: '#64748B',
+  },
+  statsContainer: {
+    flexDirection: 'row',
     marginHorizontal: 20,
-    marginTop: 4,
+    marginTop: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  statItem: {
+    flex: 1,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  statBorder: {
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#0F172A',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 14,
+    color: '#64748B',
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#E2E8F0',
-    margin: 20,
-    borderRadius: 14,
-    height: 50,
-  },
-  searchInput: {flex: 1, fontSize: 16, marginHorizontal: 10, color: '#0F172A'},
-  categoriesContainer: {
     marginHorizontal: 20,
-    marginTop: 10,
-    paddingBottom: 60,
+    marginTop: 20,
+    borderRadius: 12,
+    height: 48,
   },
-  categorySection: {
-    marginBottom: 20,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 16,
-    overflow: 'hidden',
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    marginHorizontal: 10,
+    color: '#0F172A',
   },
-  categoryHeader: {
+  filterSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    marginTop: 16,
+    paddingHorizontal: 20,
+  },
+  filtersScrollView: {
+    flexGrow: 0,
+    flexShrink: 1,
+    maxWidth: '70%',
+  },
+  filterButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 10,
     backgroundColor: '#E2E8F0',
   },
-  categoryTitleContainer: {
+  filterButtonActive: {
+    backgroundColor: '#0F766E',
+  },
+  filterButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  filterButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  expandCollapseButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: '#E2E8F0',
   },
-  categoryIcon: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  categoryTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  categoryHeaderRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  expandCollapseButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0F766E',
   },
   addDishSmallButton: {
     backgroundColor: '#CBD5E1',
     padding: 8,
     borderRadius: 24,
+    marginRight: 5,
+  },
+  menuItemsContainer: {
+    paddingHorizontal: 20,
+    marginTop: 20,
+  },
+  loader: {
+    marginTop: 20,
+    marginBottom: 30,
+  },
+  emptyStateContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyStateText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#64748B',
+    marginTop: 16,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: '#94A3B8',
+    marginTop: 8,
+  },
+  categorySection: {
+    marginBottom: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  categoryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#E2E8F0',
+  },
+  categoryTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    maxWidth: '80%',
+  },
+  categoryTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#0F172A',
+    paddingRight: 8,
+    flexShrink: 1,
+  },
+  itemCountBadge: {
+    fontSize: 14,
+    color: '#64748B',
+    backgroundColor: '#CBD5E1',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   itemsContainer: {
     padding: 12,
   },
-  card: {
+  itemCard: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 16,
+    borderRadius: 12,
+    padding: 12,
     marginBottom: 10,
     shadowColor: '#000',
     shadowOffset: {width: 0, height: 1},
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+    borderLeftWidth: 4,
   },
-  foodIcon: {fontSize: 28, marginRight: 16},
-  foodName: {fontSize: 16, fontWeight: '600', color: '#0F172A'},
-  foodPrice: {color: '#64748B', marginTop: 4},
-  availabilityButton: {
+  availableCardBadge: {
+    borderLeftColor: '#047857',
+  },
+  soldOutCardBadge: {
+    borderLeftColor: '#DC2626',
+  },
+  itemCardLongPressed: {
+    backgroundColor: '#F1F5F9',
+  },
+  itemDetails: {
+    flex: 1,
+  },
+  itemName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#0F172A',
+    marginBottom: 4,
+  },
+  itemPrice: {
+    fontSize: 14,
+    color: '#64748B',
+  },
+  fadedText: {
+    opacity: 0.6,
+  },
+  statusBadge: {
     paddingVertical: 6,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     borderRadius: 20,
-    marginLeft: 8,
+    marginLeft: 10,
   },
-  addCategoryButton: {
-    backgroundColor: '#0F766E',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+  availableBadge: {
+    backgroundColor: '#D1FAE5',
+  },
+  soldOutBadge: {
+    backgroundColor: '#FEE2E2',
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  availableText: {
+    color: '#047857',
+  },
+  soldOutText: {
+    color: '#DC2626',
+  },
+  deleteButton: {
+    backgroundColor: '#FEE2E2',
+    padding: 10,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    position: 'absolute',
-    bottom: 90,
-    right: 20,
-    elevation: 6,
+  },
+  addButton: {
+    flexDirection: 'row',
+    backgroundColor: '#0F766E',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    marginHorizontal: 20,
+    marginBottom: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.2,
-    shadowRadius: 5,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  bottomNav: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 14,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  // Dialog styles for both delete and add category
-  dialog: {
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
-  },
-  dialogTitle: {
-    fontSize: 20,
+  addButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: '700',
-    color: '#0F172A',
-  },
-  dialogContent: {
-    fontSize: 16,
-    color: '#334155',
-    lineHeight: 24,
-  },
-  dialogLabel: {
-    fontSize: 14,
-    color: '#64748B',
-    marginBottom: 8,
-  },
-  dialogInput: {
-    backgroundColor: '#F1F5F9',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: '#0F172A',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-  },
-  dialogInputError: {
-    borderColor: '#EF4444',
-  },
-  errorText: {
-    color: '#EF4444',
-    fontSize: 14,
-    marginTop: 6,
-  },
-  dialogActions: {
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  blurOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
-    zIndex: 1,
+    marginLeft: 8,
   },
 });
+
+export default MenuItemsScreen;

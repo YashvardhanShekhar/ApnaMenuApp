@@ -5,8 +5,7 @@ import {View, StyleSheet} from 'react-native';
 import {createNavigationContainerRef} from '@react-navigation/native';
 import {prepareApp} from './services/prepareApp';
 import AppNavigator from './navigation/AppNavigator';
-
-export const navigation = createNavigationContainerRef();
+import { navigationRef } from './services/navigationService';
 
 const App = () => {
   useEffect(() => {
@@ -15,7 +14,7 @@ const App = () => {
 
   return (
     <SafeAreaProvider>
-        <NavigationContainer ref={navigation}>
+        <NavigationContainer ref={navigationRef}>
           <AppNavigator />
         </NavigationContainer>
     </SafeAreaProvider>
