@@ -156,31 +156,31 @@ const ProfileScreen = () => {
           const base64Image = response.assets[0].base64;
           const uri = response.assets[0].uri;
           console.log('photo sent');
-          // const menuData = await parseMenu(base64Image);
-          // console.log('menuData', menuData);
-          const menuData = {
-            menu: {
-              Coffee: {
-                Espresso: {
-                  name: 'Espresso',
-                  price: 12.99,
-                  status: true,
-                },
-                'Mocha Latte': {
-                  name: 'Mocha Latte',
-                  price: 22,
-                  status: true,
-                },
-              },
-              Snacks: {
-                'French Fries': {
-                  name: 'French Fries',
-                  price: 12.99,
-                  status: true,
-                },
-              },
-            },
-          };
+          const menuData = await parseMenu(base64Image);
+          console.log('menuData', menuData);
+          // const menuData = {
+          //   menu: {
+          //     Coffee: {
+          //       Espresso: {
+          //         name: 'Espresso',
+          //         price: 12.99,
+          //         status: true,
+          //       },
+          //       'Mocha Latte': {
+          //         name: 'Mocha Latte',
+          //         price: 22,
+          //         status: true,
+          //       },
+          //     },
+          //     Snacks: {
+          //       'French Fries': {
+          //         name: 'French Fries',
+          //         price: 12.99,
+          //         status: true,
+          //       },
+          //     },
+          //   },
+          // };
           console.log('parse complete');
           NavigationService.navigate('MenuEditScreen', {menuData});
           setImgState(false);

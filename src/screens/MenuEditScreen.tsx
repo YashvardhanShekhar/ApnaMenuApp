@@ -244,7 +244,7 @@ const MenuEditScreen = ({route, navigation}) => {
       setIsSubmitting(false);
       return;
     }
-    // await addMenuDB(values.menu);
+    await addMenuDB(values.menu);
     await addMenu(values.menu);
     NavigationService.goBack();
     setIsSubmitting(false);
