@@ -1,11 +1,11 @@
 import {createUserContent, GoogleGenAI, Type} from '@google/genai';
 import Snackbar from 'react-native-snackbar';
-import { navigate } from '../services/navigationService';
+import {navigate} from '../services/navigationService';
 
 // Configure the client
 const ai = new GoogleGenAI({apiKey: process.env.GEMINI_API_KEY});
 
-export const parseMenu = async image => {
+export const parseMenu = async (image:string) => {
   const promptText = `
     You are a restaurant menu parser.
 
@@ -19,13 +19,48 @@ export const parseMenu = async image => {
     - For each category, separate dishes into:
       - "Veg" and "Non-Veg" based on name (e.g., "Paneer Biryani" → Veg, "Chicken Biryani" → Non-Veg).
     - Only include items that clearly have a **price**
+    - set status to true for all items
 
-    using this JSON schema
-    - Return
-      Dish = { name: string, price: number }
-      Category = { [dish_name: string]: Dish }
-      Menu = { [category: string]: Category }
-      Return: { menu: Menu }
+    - her is one example of a menu in json format for your reference:
+    {
+            menu: {
+              "Coffee": {
+                Espresso: {
+                  name: 'Espresso',
+                  price: 12.99,
+                  status: true,
+                },
+                'Mocha Latte': {
+                  name: 'Mocha Latte',
+                  price: 22,
+                  status: true,
+                },
+              },
+              "Snacks": {
+                'French Fries': {
+                  name: 'French Fries',
+                  price: 12.99,
+                  status: true,
+                },
+              },
+            },
+          };
+    - The menu should be in JSON format, and the keys should be the **dish names**.
+    - If you do not find any relevant information return an empty JSON object.
+
+    using this JSON schema:
+    json
+    {
+      "menu": {
+        "category": {
+          "dish_name": {
+            "name": "string",
+            "price": "number",
+            "status": true,
+          }
+        }
+      }
+    }
     `;
 
   // Send request with function declarations
@@ -41,17 +76,9 @@ export const parseMenu = async image => {
       {text: promptText},
     ],
   });
-  
-  const data = response.text;
+
+  const data:any = response.text;
   const extractJsonString = data.match(/```(?:json)?\n([\s\S]*?)```/)?.[1];
   const menuData = JSON.parse(extractJsonString);
-  if (menuData.length === 0) {
-    Snackbar.show({
-      text: 'No menu data found',
-      duration: Snackbar.LENGTH_LONG,
-    });
-    return;
-  }
-  console.log( menuData);
-  navigate('MenuEditScreen', {menuData});
+  return menuData;
 };

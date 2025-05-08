@@ -19,7 +19,7 @@ import {useNavigation} from '@react-navigation/native';
 import {saveProfileInfoDB} from '../services/databaseManager';
 import {fetchProfileInfo, saveProfileInfo} from '../services/storageService';
 import Icon from 'react-native-vector-icons/Feather';
-import {checkInternet} from '../components/chechInternet';
+import {checkInternet} from '../components/checkInternet';
 
 const ProfileSchema = Yup.object().shape({
   name: Yup.string()

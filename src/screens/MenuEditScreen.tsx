@@ -16,6 +16,26 @@ import Icon from 'react-native-vector-icons/Feather';
 import * as Yup from 'yup';
 import {Formik} from 'formik';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {addMenuDB} from '../services/databaseManager';
+import * as NavigationService from '../services/navigationService';
+import {addMenu, syncData} from '../services/storageService';
+import {checkInternet} from '../components/checkInternet';
+
+const Countdown = () => {
+  const [count, setCount] = useState(10);
+
+  useEffect(() => {
+    if (count === 0) {
+      NavigationService.goBack();
+    }
+    const timer = setTimeout(() => {
+      setCount(prev => prev - 1);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [count]);
+
+  return <>{count}</>;
+};
 
 // Validation schema - dynamically validate all nested fields
 const MenuEditSchema = Yup.object().shape({
@@ -217,21 +237,19 @@ const MenuEditScreen = ({route, navigation}) => {
   // Handle form submission
   const handleFormSubmit = async values => {
     setIsSubmitting(true);
-    try {
-      // Create a clean menu object without the categoryNames
-      const menuToSubmit = {menu: values.menu};
-
-      // Implementation for actual submission logic
-      console.log('Form submitted with values:', menuToSubmit);
-      Alert.alert('Success', 'Menu updated successfully');
-    } catch (error) {
-      console.error('Error updating menu:', error);
-      Alert.alert('Error', 'Failed to update menu');
-    } finally {
+    // const menuToSubmit:Menu = {menu: values.menu};
+    console.log(values.menu);
+    const ci = await checkInternet();
+    if (!ci) {
       setIsSubmitting(false);
+      return;
     }
+    // await addMenuDB(values.menu);
+    await addMenu(values.menu);
+    NavigationService.goBack();
+    setIsSubmitting(false);
   };
-  
+
   if (Object.keys(initialMenuData.menu).length === 0) {
     return (
       <>
@@ -243,27 +261,28 @@ const MenuEditScreen = ({route, navigation}) => {
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Edit Menu</Text>
         </View>
-        
+
         <View style={styles.emptyState}>
           <Icon name="menu" size={48} color="#94A3B8" />
           <Text style={styles.emptyStateText}>
-            No menu items found {'\n'}It seems that the picture you uploaded is
-            not a menu.
+            No menu items found. It seems that the picture you uploaded is not a
+            menu.
+            {'\n'}
             {'\n'}Please try again with a clearer image.
+            {'\n'}
+            {'\n'}You are going to be redirected to the home screen in{' '}
+            <Countdown /> seconds.
           </Text>
         </View>
       </>
     );
-
   }
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-
-          <KeyboardAvoidingView
-            // behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.container}
-            >
+      <KeyboardAvoidingView
+        // behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
@@ -310,221 +329,224 @@ const MenuEditScreen = ({route, navigation}) => {
                 <ScrollView
                   style={styles.formContainer}
                   keyboardShouldPersistTaps="handled">
-                  {
-                  
-                    Object.keys(values.menu).map(categoryKey => {
-                      const category = values.menu[categoryKey];
-                      const categoryNameError = categoryNameErrors[categoryKey];
-                      const isCategoryTouched =
-                        touched.categoryNames?.[categoryKey];
+                  {Object.keys(values.menu).map(categoryKey => {
+                    const category = values.menu[categoryKey];
+                    const categoryNameError = categoryNameErrors[categoryKey];
+                    const isCategoryTouched =
+                      touched.categoryNames?.[categoryKey];
 
-                      return (
-                        <View
-                          key={`category-${categoryKey}`}
-                          style={styles.categoryContainer}>
-                          <View style={styles.categoryTitleContainer}>
-                            <TextInput
-                              mode="outlined"
-                              style={styles.categoryNameInput}
-                              value={values.categoryNames[categoryKey] || ''}
-                              onChangeText={text => {
-                                setFieldValue(
-                                  `categoryNames.${categoryKey}`,
-                                  text,
-                                );
-                              }}
-                              onBlur={() => {
-                                setFieldTouched(
-                                  `categoryNames.${categoryKey}`,
-                                  true,
-                                );
+                    return (
+                      <View
+                        key={`category-${categoryKey}`}
+                        style={styles.categoryContainer}>
+                        <View style={styles.categoryTitleContainer}>
+                          <TextInput
+                            mode="outlined"
+                            style={styles.categoryNameInput}
+                            value={values.categoryNames[categoryKey] || ''}
+                            onChangeText={text => {
+                              setFieldValue(
+                                `categoryNames.${categoryKey}`,
+                                text,
+                              );
+                            }}
+                            onBlur={() => {
+                              setFieldTouched(
+                                `categoryNames.${categoryKey}`,
+                                true,
+                              );
 
-                                // Only rename category if validation passes
-                                const newName =
-                                  values.categoryNames[categoryKey];
-                                if (
-                                  newName &&
-                                  newName.trim() !== '' &&
-                                  newName !== categoryKey
-                                ) {
-                                  handleCategoryRename(
-                                    setFieldValue,
-                                    values,
-                                    categoryKey,
-                                    newName.trim(),
-                                  );
-                                }
-                              }}
-                              error={isCategoryTouched && !!categoryNameError}
-                              outlineStyle={styles.categoryInputOutline}
-                              theme={{
-                                colors: {
-                                  primary: '#0F766E',
-                                  text: '#0F172A',
-                                  error: '#DC2626',
-                                },
-                              }}
-                              textColor="#0F172A"
-                              left={
-                                <TextInput.Icon
-                                  icon="tag-outline"
-                                  size={20}
-                                  color="#64748B"
-                                />
+                              // Only rename category if validation passes
+                              const newName = values.categoryNames[categoryKey];
+                              if (
+                                newName &&
+                                newName.trim() !== '' &&
+                                newName !== categoryKey
+                              ) {
+                                handleCategoryRename(
+                                  setFieldValue,
+                                  values,
+                                  categoryKey,
+                                  newName.trim(),
+                                );
                               }
-                            />
-                            {isCategoryTouched && categoryNameError && (
-                              <HelperText
-                                type="error"
-                                visible={true}
-                                style={styles.errorText}>
-                                {categoryNameError}
-                              </HelperText>
-                            )}
-                          </View>
-
-                          {Object.keys(category).map(dishKey => {
-                            const dish = category[dishKey];
-                            const dishNamePath = `menu.${categoryKey}.${dishKey}.name`;
-                            const dishPricePath = `menu.${categoryKey}.${dishKey}.price`;
-                            const hasNameError =
-                              // touched.menu?.[categoryKey]?.[dishKey]?.name &&
-                              errors.menu?.[categoryKey]?.[dishKey]?.name;
-                            const hasPriceError =
-                              // touched.menu?.[categoryKey]?.[dishKey]?.price &&
-                              errors.menu?.[categoryKey]?.[dishKey]?.price;
-
-                            return (
-                              <View
-                                key={`dish-${dishKey}`}
-                                style={styles.dishItem}>
-                                <View style={styles.dishInputContainer}>
-                                  <TextInput
-                                    mode="outlined"
-                                    style={styles.dishNameInput}
-                                    value={dish.name}
-                                    onChangeText={value =>
-                                      setFieldValue(dishNamePath, value)
-                                    }
-                                    onBlur={() => handleBlur(dishNamePath)}
-                                    error={hasNameError}
-                                    outlineStyle={styles.inputOutline}
-                                    theme={{
-                                      colors: {
-                                        primary: '#0F766E',
-                                        text: '#0F172A',
-                                        error: '#DC2626',
-                                      },
-                                    }}
-                                    textColor="#0F172A"
-                                    placeholder="Dish name"
-                                  />
-
-                                  <TextInput
-                                    mode="outlined"
-                                    style={styles.dishPriceInput}
-                                    value={
-                                      dish.price !== undefined
-                                        ? String(dish.price)
-                                        : ''
-                                    }
-                                    keyboardType="numeric"
-                                    onChangeText={value => {
-                                      if (
-                                        value === '' ||
-                                        validatePriceInput(value)
-                                      ) {
-                                        const numValue =
-                                          value === '' ? '' : parseFloat(value);
-                                        setFieldValue(dishPricePath, numValue);
-                                      }
-                                    }}
-                                    onBlur={() => handleBlur(dishPricePath)}
-                                    error={hasPriceError}
-                                    outlineStyle={styles.inputOutline}
-                                    theme={{
-                                      colors: {
-                                        primary: '#0F766E',
-                                        text: '#0F172A',
-                                        error: '#DC2626',
-                                      },
-                                    }}
-                                    textColor="#0F172A"
-                                    placeholder="Price"
-                                    left={
-                                      <TextInput.Icon
-                                        icon="currency-inr"
-                                        size={18}
-                                        color="#64748B"
-                                      />
-                                    }
-                                  />
-
-                                  <TouchableOpacity
-                                    style={styles.deleteButton}
-                                    onPress={() => {
-                                      Alert.alert(
-                                        'Delete Dish',
-                                        `Are you sure you want to delete "${dish.name}" ?`,
-                                        [
-                                          {
-                                            text: 'Cancel',
-                                            style: 'cancel',
-                                          },
-                                          {
-                                            text: 'Delete',
-                                            onPress: () =>
-                                              handleDeleteDish(
-                                                setFieldValue,
-                                                values,
-                                                categoryKey,
-                                                dishKey,
-                                              ),
-                                            style: 'destructive',
-                                          },
-                                        ],
-                                      );
-                                    }}>
-                                    <Icon
-                                      name="trash-2"
-                                      size={18}
-                                      color="#DC2626"
-                                    />
-                                  </TouchableOpacity>
-                                </View>
-
-                                {hasNameError && (
-                                  <HelperText
-                                    type="error"
-                                    visible={true}
-                                    style={styles.errorText}>
-                                    {
-                                      errors.menu?.[categoryKey]?.[dishKey]
-                                        ?.name
-                                    }
-                                  </HelperText>
-                                )}
-
-                                {hasPriceError && (
-                                  <HelperText
-                                    type="error"
-                                    visible={true}
-                                    style={styles.errorText}>
-                                    {
-                                      errors.menu?.[categoryKey]?.[dishKey]
-                                        ?.price
-                                    }
-                                  </HelperText>
-                                )}
-                              </View>
-                            );
-                          })}
-
-                          <Divider style={styles.divider} />
+                            }}
+                            error={isCategoryTouched && !!categoryNameError}
+                            outlineStyle={styles.categoryInputOutline}
+                            theme={{
+                              colors: {
+                                primary: '#0F766E',
+                                text: '#0F172A',
+                                error: '#DC2626',
+                              },
+                            }}
+                            textColor="#0F172A"
+                            left={
+                              <TextInput.Icon
+                                icon="tag-outline"
+                                size={20}
+                                color="#64748B"
+                              />
+                            }
+                          />
+                          {isCategoryTouched && categoryNameError && (
+                            <HelperText
+                              type="error"
+                              visible={true}
+                              style={styles.errorText}>
+                              {categoryNameError}
+                            </HelperText>
+                          )}
                         </View>
-                      );
-                    })
-                  }
+
+                        {Object.keys(category).map(dishKey => {
+                          const dish = category[dishKey];
+                          const dishNamePath = `menu.${categoryKey}.${dishKey}.name`;
+                          const dishPricePath = `menu.${categoryKey}.${dishKey}.price`;
+                          const hasNameError =
+                            // touched.menu?.[categoryKey]?.[dishKey]?.name &&
+                            errors.menu?.[categoryKey]?.[dishKey]?.name;
+                          const hasPriceError =
+                            // touched.menu?.[categoryKey]?.[dishKey]?.price &&
+                            errors.menu?.[categoryKey]?.[dishKey]?.price;
+
+                          return (
+                            <View
+                              key={`dish-${dishKey}`}
+                              style={styles.dishItem}>
+                              <View style={styles.dishInputContainer}>
+                                <TextInput
+                                  mode="outlined"
+                                  style={styles.dishNameInput}
+                                  value={dish.name}
+                                  onChangeText={value => {
+                                    setFieldValue(dishNamePath, value);
+                                  }}
+                                  onBlur={() => {
+                                    handleBlur(dishNamePath);
+                                    const dishName = dish.name;
+                                    const price = dish.price;
+                                    delete values.menu[categoryKey][dishKey];
+                                    setFieldValue(
+                                      `menu.${categoryKey}.${dishName}`,
+                                      {
+                                        name: dishName,
+                                        price: price,
+                                        status: true,
+                                      },
+                                    );
+                                  }}
+                                  error={hasNameError}
+                                  outlineStyle={styles.inputOutline}
+                                  theme={{
+                                    colors: {
+                                      primary: '#0F766E',
+                                      text: '#0F172A',
+                                      error: '#DC2626',
+                                    },
+                                  }}
+                                  textColor="#0F172A"
+                                  placeholder="Dish name"
+                                />
+
+                                <TextInput
+                                  mode="outlined"
+                                  style={styles.dishPriceInput}
+                                  value={
+                                    dish.price !== undefined
+                                      ? String(dish.price)
+                                      : ''
+                                  }
+                                  keyboardType="numeric"
+                                  onChangeText={value => {
+                                    if (
+                                      value === '' ||
+                                      validatePriceInput(value)
+                                    ) {
+                                      const numValue =
+                                        value === '' ? '' : parseFloat(value);
+                                      setFieldValue(dishPricePath, numValue);
+                                    }
+                                  }}
+                                  onBlur={() => handleBlur(dishPricePath)}
+                                  error={hasPriceError}
+                                  outlineStyle={styles.inputOutline}
+                                  theme={{
+                                    colors: {
+                                      primary: '#0F766E',
+                                      text: '#0F172A',
+                                      error: '#DC2626',
+                                    },
+                                  }}
+                                  textColor="#0F172A"
+                                  placeholder="Price"
+                                  left={
+                                    <TextInput.Icon
+                                      icon="currency-inr"
+                                      size={18}
+                                      color="#64748B"
+                                    />
+                                  }
+                                />
+
+                                <TouchableOpacity
+                                  style={styles.deleteButton}
+                                  onPress={() => {
+                                    Alert.alert(
+                                      'Delete Dish',
+                                      `Are you sure you want to delete "${dish.name}" ?`,
+                                      [
+                                        {
+                                          text: 'Cancel',
+                                          style: 'cancel',
+                                        },
+                                        {
+                                          text: 'Delete',
+                                          onPress: () =>
+                                            handleDeleteDish(
+                                              setFieldValue,
+                                              values,
+                                              categoryKey,
+                                              dishKey,
+                                            ),
+                                          style: 'destructive',
+                                        },
+                                      ],
+                                    );
+                                  }}>
+                                  <Icon
+                                    name="trash-2"
+                                    size={18}
+                                    color="#DC2626"
+                                  />
+                                </TouchableOpacity>
+                              </View>
+
+                              {hasNameError && (
+                                <HelperText
+                                  type="error"
+                                  visible={true}
+                                  style={styles.errorText}>
+                                  {errors.menu?.[categoryKey]?.[dishKey]?.name}
+                                </HelperText>
+                              )}
+
+                              {hasPriceError && (
+                                <HelperText
+                                  type="error"
+                                  visible={true}
+                                  style={styles.errorText}>
+                                  {errors.menu?.[categoryKey]?.[dishKey]?.price}
+                                </HelperText>
+                              )}
+                            </View>
+                          );
+                        })}
+
+                        <Divider style={styles.divider} />
+                      </View>
+                    );
+                  })}
 
                   <View style={styles.footerContainer}>
                     <Icon name="info" size={16} color="#64748B" />

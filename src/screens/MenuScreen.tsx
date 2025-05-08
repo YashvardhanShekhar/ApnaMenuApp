@@ -23,7 +23,7 @@ import {
   syncData,
 } from '../services/storageService';
 import * as NavigationService from '../services/navigationService';
-import {checkInternet} from '../components/chechInternet';
+import {checkInternet} from '../components/checkInternet';
 import {deleteDish, setAvailability} from '../services/databaseManager';
 import RNHapticFeedback from 'react-native-haptic-feedback';
 import {Haptic} from '../components/haptics';
@@ -70,7 +70,7 @@ const MenuItemsScreen = () => {
   const loadMenuItems = async () => {
     try {
       setRefreshing(true);
-      const menu:Menu = await fetchMenu();
+      const menu: Menu = await fetchMenu();
       if (menu) {
         setMenuItems(menu);
         loadStats();
@@ -207,8 +207,7 @@ const MenuItemsScreen = () => {
   // Handle delete item
   const handleDelete = async (category: string, item: string) => {
     await deleteDish(category, item);
-    const updatedMenu = 
-    setMenuItems( (prevMenuItems) => {
+    const updatedMenu = setMenuItems(prevMenuItems => {
       const updatedMenu = {...prevMenuItems};
       delete updatedMenu[category][item];
 
@@ -218,7 +217,6 @@ const MenuItemsScreen = () => {
       saveMenu(updatedMenu);
       return updatedMenu;
     });
-
 
     setLongPressedItem(null);
   };
@@ -245,7 +243,13 @@ const MenuItemsScreen = () => {
 
       <ScrollView
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#0F766E']} // spinner color (Android)
+            progressBackgroundColor="#FFFFFF" // background color (Android)
+            tintColor="#0F766E" // spinner color (iOS)
+          />
         }>
         {/* Profile Info */}
         <View style={styles.headerSection}>

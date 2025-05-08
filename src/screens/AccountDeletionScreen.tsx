@@ -23,7 +23,7 @@ import {TextInput} from 'react-native';
 import {deleteAccountPermanently} from '../services/databaseManager';
 import {fetchUrl, fetchUser} from '../services/storageService';
 import {handleLogOut} from '../services/authentication';
-import { checkInternet } from '../components/chechInternet';
+import {checkInternet} from '../components/checkInternet';
 
 // const navigation = useNavigation();
 // Validation schema

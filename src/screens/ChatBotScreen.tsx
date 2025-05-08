@@ -9,13 +9,13 @@ import React, {useState} from 'react';
 import {createUserContent, GoogleGenAI} from '@google/genai';
 import {GEMINI_API_KEY} from '@env';
 import {ActivityIndicator} from 'react-native-paper';
-import { checkInternet } from '../components/chechInternet';
+import {checkInternet} from '../components/checkInternet';
 const ai = new GoogleGenAI({apiKey: GEMINI_API_KEY});
 
-export const uploadPhoto = async(image)=> {
-  console.log(image)
-  const ci = checkInternet()
-  if(!ci){
+export const uploadPhoto = async image => {
+  console.log(image);
+  const ci = checkInternet();
+  if (!ci) {
     return;
   }
   const response = await ai.models.generateContent({
@@ -28,7 +28,7 @@ export const uploadPhoto = async(image)=> {
     ],
   });
   console.log(response.text);
-}
+};
 
 const ChatBotScreen = () => {
   const [res, setRes] = useState('Click me');

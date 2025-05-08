@@ -403,3 +403,37 @@ export const deleteUsersInUsers = async (arr: string[]) => {
     });
   }
 };
+
+export const addMenuDB = async ( menu:Menu ) => {
+  try {
+    const url = await AsyncStorage.getItem('url');
+    if (!url) {
+      throw new Error('URL not found in Storage');
+    }
+
+    await firestore()
+      .collection('restaurants')
+      .doc(url as string)
+      .set(
+        {
+          menu:menu,
+        },
+        {merge: true},
+      )
+      .then(() => {
+        Snackbar.show({
+          text: 'menu updated successfully',
+          duration: Snackbar.LENGTH_SHORT,
+          action: {
+            text: 'OK',
+            textColor: '#0F766E',
+          },
+        });
+      });
+  } catch (error: any) {
+    Snackbar.show({
+      text: error.message,
+      duration: Snackbar.LENGTH_SHORT,
+    });
+  }
+};

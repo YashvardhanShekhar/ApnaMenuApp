@@ -29,7 +29,7 @@ import {
   saveProfileInfo,
   saveUrl,
 } from '../services/storageService';
-import { checkInternet } from '../components/chechInternet';
+import {checkInternet} from '../components/checkInternet';
 
 // Form validation schema
 const RestaurantRegistrationSchema = Yup.object().shape({
@@ -66,7 +66,7 @@ const RestaurantRegistrationScreen = ({route}) => {
 
   const handleFormSubmit = async values => {
     setIsSubmitting(true);
-    
+
     const ci = await checkInternet();
     if (!ci) {
       setIsSubmitting(false);
@@ -122,8 +122,6 @@ const RestaurantRegistrationScreen = ({route}) => {
           <ScrollView
             style={styles.formContainer}
             keyboardShouldPersistTaps="handled">
-            
-
             <Formik
               initialValues={{
                 restaurantName: '',

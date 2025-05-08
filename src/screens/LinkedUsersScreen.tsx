@@ -23,7 +23,7 @@ import {
   saveLinkedUsersDB,
 } from '../services/databaseManager';
 import {fetchLinkedUsers, saveLinkedUsers} from '../services/storageService';
-import {checkInternet} from '../components/chechInternet';
+import {checkInternet} from '../components/checkInternet';
 
 // Validation schema
 const userSchema = Yup.object().shape({

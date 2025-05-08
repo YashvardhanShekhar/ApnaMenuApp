@@ -24,7 +24,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as NavigationService from '../services/navigationService';
 import {addNewDish} from '../services/storageService';
-import {checkInternet} from '../components/chechInternet';
+import {checkInternet} from '../components/checkInternet';
 
 // Transform your schema to use async validation
 const AddDishSchema = Yup.object().shape({

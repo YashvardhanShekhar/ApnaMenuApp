@@ -137,3 +137,22 @@ export const fetchStats = async () => {
     return {}
   }
 }
+
+export const addMenu = async (menu:Menu) => {
+  const existingMenu = await fetchMenu();
+  const updatedMenu = {...existingMenu};
+  Object.entries(menu).forEach(([category, dishes]) => {
+    if (updatedMenu[category]) {
+      // If category exists, merge the dishes
+      updatedMenu[category] = {
+        ...updatedMenu[category],
+        ...dishes,
+      };
+    } else {
+      // If category doesn't exist, add it
+      updatedMenu[category] = {...dishes};
+    }
+  });
+
+  await saveMenu(updatedMenu);
+}

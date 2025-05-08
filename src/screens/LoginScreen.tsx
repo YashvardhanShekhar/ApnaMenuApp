@@ -16,7 +16,7 @@ import Feather from 'react-native-vector-icons/Feather';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import {handleSignIn} from '../services/authentication';
-import { checkInternet } from '../components/chechInternet';
+import {checkInternet} from '../components/checkInternet';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -47,7 +47,6 @@ export default function App() {
     ]).start();
   }, []);
 
-
   const onPressIn = () => {
     Animated.spring(buttonScale, {
       toValue: 0.95,
@@ -72,8 +71,6 @@ export default function App() {
     await handleSignIn();
     setLoading(false);
   };
-
-
 
   return (
     <View style={styles.container}>
@@ -112,7 +109,6 @@ export default function App() {
 
       <Animated.View
         style={[styles.loadingContainer, {opacity: loadingOpacity}]}>
-        
         <Text style={[styles.loadingText]}>
           wait we are fetching your details ...
         </Text>

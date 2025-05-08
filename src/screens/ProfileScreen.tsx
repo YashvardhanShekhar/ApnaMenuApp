@@ -22,15 +22,16 @@ import {
   fetchStats,
   fetchUrl,
   fetchUser,
+  saveStats,
   syncData,
 } from '../services/storageService';
 import Snackbar from 'react-native-snackbar';
 import {handleLogOut} from '../services/authentication';
 import * as NavigationService from '../services/navigationService';
-import {checkInternet} from '../components/chechInternet';
+import {checkInternet} from '../components/checkInternet';
 import {launchImageLibrary} from 'react-native-image-picker';
 import {uploadPhoto} from './ChatBotScreen';
-import { parseMenu } from '../components/genai';
+import {parseMenu} from '../components/genai';
 
 const ProfileScreen = () => {
   const isFocused = useIsFocused();
@@ -62,14 +63,10 @@ const ProfileScreen = () => {
     const loadData = async () => {
       try {
         setRefreshing(true);
-
+        loadStats();
         const user = await fetchUser();
         if (user) {
           setUser(user);
-        }
-        const stats = await fetchStats();
-        if (stats) {
-          setStats(stats);
         }
         const info = await fetchProfileInfo();
         const url = await fetchUrl();
@@ -78,6 +75,10 @@ const ProfileScreen = () => {
         }
         if (url) {
           setUrl(url);
+        }
+        const stats = await fetchStats();
+        if (stats) {
+          setStats(stats);
         }
       } catch (error) {
         console.error('Error loading profile data:', error);
@@ -89,6 +90,34 @@ const ProfileScreen = () => {
       loadData();
     }
   }, [isFocused]);
+
+  const loadStats = async () => {
+    // Calculate menu item statistics
+    const menuItems = await fetchMenu();
+
+    const totalItems = Object.keys(menuItems).reduce(
+      (total, category) => total + Object.keys(menuItems[category]).length,
+      0,
+    );
+
+    const availableItems = Object.keys(menuItems).reduce(
+      (total, category) =>
+        total +
+        Object.keys(menuItems[category]).filter(
+          item => menuItems[category][item].status,
+        ).length,
+      0,
+    );
+
+    const soldOutItems = totalItems - availableItems;
+    await saveStats(totalItems, availableItems, soldOutItems);
+  };
+
+  const handleAddDish = (category: string) => {
+    NavigationService.navigate('AddDish', {
+      category,
+    });
+  };
 
   function handleEditInfo() {
     NavigationService.navigate('EditInfo');
@@ -126,99 +155,33 @@ const ProfileScreen = () => {
           setImgState(true);
           const base64Image = response.assets[0].base64;
           const uri = response.assets[0].uri;
-          console.log("photo sent")
+          console.log('photo sent');
           // const menuData = await parseMenu(base64Image);
+          // console.log('menuData', menuData);
           const menuData = {
             menu: {
               Coffee: {
                 Espresso: {
                   name: 'Espresso',
                   price: 12.99,
-                },
-                Cappucino: {
-                  name: 'Cappucino',
-                  price: 23.55,
-                },
-                Mochacino: {
-                  name: 'Mochacino',
-                  price: 22,
-                },
-                Americano: {
-                  name: 'Americano',
-                  price: 15,
-                },
-                'Coffee Milk': {
-                  name: 'Coffee Milk',
-                  price: 17,
-                },
-                Machiatto: {
-                  name: 'Machiatto',
-                  price: 12.99,
-                },
-                'Iced Cappucino': {
-                  name: 'Iced Cappucino',
-                  price: 23.55,
+                  status: true,
                 },
                 'Mocha Latte': {
                   name: 'Mocha Latte',
                   price: 22,
-                },
-                'Vanilla Latte': {
-                  name: 'Vanilla Latte',
-                  price: 15,
-                },
-                'Brown Sugar Coffee': {
-                  name: 'Brown Sugar Coffee',
-                  price: 17,
-                },
-              },
-              Tea: {
-                'Iced Tea': {
-                  name: 'Iced Tea',
-                  price: 12.99,
-                },
-                'Matcha Latte': {
-                  name: 'Matcha Latte',
-                  price: 23.55,
-                },
-                'Lemon Tea': {
-                  name: 'Lemon Tea',
-                  price: 22,
-                },
-                'Jasmine Tea': {
-                  name: 'Jasmine Tea',
-                  price: 15,
-                },
-                'Milk Tea': {
-                  name: 'Milk Tea',
-                  price: 17,
+                  status: true,
                 },
               },
               Snacks: {
                 'French Fries': {
                   name: 'French Fries',
                   price: 12.99,
-                },
-                'Mix Platter': {
-                  name: 'Mix Platter',
-                  price: 23.55,
-                },
-                'Crispy Mushroom': {
-                  name: 'Crispy Mushroom',
-                  price: 22,
-                },
-                'Seafood Mix': {
-                  name: 'Seafood Mix',
-                  price: 15,
-                },
-                'Spicy Wings': {
-                  name: 'Spicy Wings',
-                  price: 17,
+                  status: true,
                 },
               },
             },
           };
-          console.log('parse complete')
+          console.log('parse complete');
           NavigationService.navigate('MenuEditScreen', {menuData});
           setImgState(false);
         }
@@ -230,7 +193,13 @@ const ProfileScreen = () => {
     <SafeAreaView style={styles.container}>
       <ScrollView
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#0F766E']} // spinner color (Android)
+            progressBackgroundColor="#FFFFFF" // background color (Android)
+            tintColor="#0F766E" // spinner color (iOS)
+          />
         }>
         {/* Profile Info */}
         <View style={styles.profileSection}>
@@ -320,14 +289,13 @@ const ProfileScreen = () => {
             <View style={styles.statusContent}>
               <Text style={styles.statusTitle}>Upload photo of you menu</Text>
               <Text style={styles.statusDescription}>
-                {imgState 
-                  ? "Processing your menu image... Please wait"
-                  : "Upload a photo of your menu to automatically import items"
-                }
+                {imgState
+                  ? 'Processing your menu image... Please wait'
+                  : 'Upload a photo of your menu to automatically import items'}
               </Text>
             </View>
             {imgState ? (
-                <ActivityIndicator size="small" color="#0F766E" />
+              <ActivityIndicator size="small" color="#0F766E" />
             ) : (
               <Icon name="camera" size={24} color="#64748B" />
             )}
