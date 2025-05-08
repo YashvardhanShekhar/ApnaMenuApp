@@ -207,18 +207,18 @@ const MenuItemsScreen = () => {
   // Handle delete item
   const handleDelete = async (category: string, item: string) => {
     await deleteDish(category, item);
-
-    setMenuItems(prevMenuItems => {
+    const updatedMenu = 
+    setMenuItems( (prevMenuItems) => {
       const updatedMenu = {...prevMenuItems};
       delete updatedMenu[category][item];
 
       if (Object.keys(updatedMenu[category]).length === 0) {
         delete updatedMenu[category];
       }
+      saveMenu(updatedMenu);
       return updatedMenu;
     });
 
-    await saveMenu(menuItems);
 
     setLongPressedItem(null);
   };

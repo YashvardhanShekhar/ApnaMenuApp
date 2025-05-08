@@ -57,16 +57,41 @@ export const addNewDishDB = async (
 };
 
 export const deleteDish = async (category: string, name: string) => {
-  const url = await AsyncStorage.getItem('url');
-  const path = 'menu.' + category + '.' + name;
-  console.log(path);
-  await firestore()
-    .collection('restaurants')
-    .doc(url as string)
-    .update({
-      [path]: firestore.FieldValue.delete(), // Deleting the nested field
-    })
-    .then(() => {
+  try {
+    const url = await AsyncStorage.getItem('url');
+    const path = 'menu.' + category + '.' + name;
+    console.log(path);
+    await firestore()
+      .collection('restaurants')
+      .doc(url as string)
+      .update({
+        [path]: firestore.FieldValue.delete(), // Deleting the nested field
+      });
+
+    const res = await firestore()
+      .collection('restaurants')
+      .doc(url as string)
+      .get();
+    const data = res.data();
+    const size = Object.keys(data?.menu?.[category] || {}).length;
+    if (size === 0) {
+      await firestore()
+        .collection('restaurants')
+        .doc(url as string)
+        .update({
+          [`menu.${category}`]: firestore.FieldValue.delete(),
+        })
+        .then(() => {
+          Snackbar.show({
+            text: `${category} along with ${name} has been deleted`,
+            duration: Snackbar.LENGTH_SHORT,
+            action: {
+              text: 'OK',
+              textColor: '#0F766E',
+            },
+          });
+        });
+    }else{
       Snackbar.show({
         text: name + ' deleted successfully',
         duration: Snackbar.LENGTH_SHORT,
@@ -75,43 +100,12 @@ export const deleteDish = async (category: string, name: string) => {
           textColor: '#0F766E',
         },
       });
-    })
-    .catch(error => {
-      Snackbar.show({
-        text: error.message,
-        duration: Snackbar.LENGTH_SHORT,
-      });
+    }
+  } catch (error) {
+    Snackbar.show({
+      text: error.message,
+      duration: Snackbar.LENGTH_SHORT,
     });
-
-  const res = await firestore()
-    .collection('restaurants')
-    .doc(url as string)
-    .get();
-  const data = res.data();
-  const size = Object.keys(data?.menu?.[category] || {}).length;
-  if (size === 0) {
-    await firestore()
-      .collection('restaurants')
-      .doc(url as string)
-      .update({
-        [`menu.${category}`]: firestore.FieldValue.delete(),
-      })
-      .then(() => {
-        Snackbar.show({
-          text: category + ' was empty and has been deleted',
-          duration: Snackbar.LENGTH_SHORT,
-          action: {
-            text: 'OK',
-            textColor: '#0F766E',
-          },
-        });
-      })
-      .catch(error => {
-        Snackbar.show({
-          text: error.message,
-          duration: Snackbar.LENGTH_SHORT,
-        });
-      });
   }
 };
 
@@ -122,7 +116,6 @@ export const setAvailability = async (
 ) => {
   try {
     const url = await AsyncStorage.getItem('url');
-    const path = `menu.${category}.${dishName}.status`;
     await firestore()
       .collection('restaurants')
       .doc(url as string)

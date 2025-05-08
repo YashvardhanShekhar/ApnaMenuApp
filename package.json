@@ -10,6 +10,7 @@
     "test": "jest"
   },
   "dependencies": {
+    "@google/genai": "^0.12.0",
     "@react-native-async-storage/async-storage": "^1.24.0",
     "@react-native-community/netinfo": "^11.4.1",
     "@react-native-firebase/app": "^21.14.0",
@@ -30,6 +31,7 @@
     "react-native-dotenv": "^3.4.11",
     "react-native-exit-app": "^2.0.0",
     "react-native-haptic-feedback": "^2.3.3",
+    "react-native-image-picker": "^8.2.1",
     "react-native-linear-gradient": "^2.8.3",
     "react-native-paper": "^5.13.4",
     "react-native-safe-area-context": "^5.4.0",

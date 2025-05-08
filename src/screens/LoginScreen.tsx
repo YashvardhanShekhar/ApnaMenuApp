@@ -31,30 +31,6 @@ export default function App() {
   // Food loading animation values
   const loadingOpacity = useRef(new Animated.Value(0)).current;
 
-  // Food icons animation values
-  const food1Anim = useRef(new Animated.Value(0)).current;
-  const food2Anim = useRef(new Animated.Value(0)).current;
-  const food3Anim = useRef(new Animated.Value(0)).current;
-  const food4Anim = useRef(new Animated.Value(0)).current;
-  const food5Anim = useRef(new Animated.Value(0)).current;
-
-  // Indian food icons - custom set
-  const indianFoodIcons = [
-    {type: 'FontAwesome5', name: 'bread-slice', label: 'Chapati'},
-    {type: 'MaterialCommunityIcons', name: 'rice', label: 'Biryani'},
-    {type: 'MaterialCommunityIcons', name: 'food-variant', label: 'Paratha'},
-    {type: 'MaterialCommunityIcons', name: 'food', label: 'Curry'},
-    {type: 'MaterialCommunityIcons', name: 'food-apple', label: 'Vegetables'},
-    {type: 'MaterialCommunityIcons', name: 'glass-wine', label: 'Lassi'},
-    {type: 'FontAwesome5', name: 'pepper-hot', label: 'Spice'},
-    {type: 'MaterialCommunityIcons', name: 'pot-steam', label: 'Dal'},
-    {type: 'MaterialCommunityIcons', name: 'bowl', label: 'Raita'},
-    {type: 'MaterialCommunityIcons', name: 'cupcake', label: 'Dessert'},
-  ];
-
-  // Current set of food icons for animation - will change each time
-  const [currentFoodSet, setCurrentFoodSet] = useState([]);
-
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {

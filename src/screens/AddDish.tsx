@@ -94,7 +94,7 @@ const AddDishScreen = ({
           height: 55,
           paddingBottom: 8,
           paddingTop: 8,
-          marginHorizontal: 10,
+          marginHorizontal: 30, // Updated from 10 to 30
           ...styles.shadow,
         },
       });

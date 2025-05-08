@@ -28,6 +28,9 @@ import Snackbar from 'react-native-snackbar';
 import {handleLogOut} from '../services/authentication';
 import * as NavigationService from '../services/navigationService';
 import {checkInternet} from '../components/chechInternet';
+import {launchImageLibrary} from 'react-native-image-picker';
+import {uploadPhoto} from './ChatBotScreen';
+import { parseMenu } from '../components/genai';
 
 const ProfileScreen = () => {
   const isFocused = useIsFocused();
@@ -69,7 +72,6 @@ const ProfileScreen = () => {
           setStats(stats);
         }
         const info = await fetchProfileInfo();
-        console.log(info);
         const url = await fetchUrl();
         if (info) {
           setProfileData(info);
@@ -107,6 +109,122 @@ const ProfileScreen = () => {
   function handleDeleteAccount() {
     NavigationService.navigate('AccountDeletion');
   }
+
+  const [imgState, setImgState] = useState(false);
+  const upload = () => {
+    launchImageLibrary(
+      {
+        mediaType: 'photo',
+        includeBase64: true,
+      },
+      async response => {
+        if (response.didCancel) {
+          console.log('User cancelled image picker');
+        } else if (response.errorCode) {
+          console.log('ImagePicker Error: ', response.errorMessage);
+        } else {
+          setImgState(true);
+          const base64Image = response.assets[0].base64;
+          const uri = response.assets[0].uri;
+          console.log("photo sent")
+          // const menuData = await parseMenu(base64Image);
+          const menuData = {
+            menu: {
+              Coffee: {
+                Espresso: {
+                  name: 'Espresso',
+                  price: 12.99,
+                },
+                Cappucino: {
+                  name: 'Cappucino',
+                  price: 23.55,
+                },
+                Mochacino: {
+                  name: 'Mochacino',
+                  price: 22,
+                },
+                Americano: {
+                  name: 'Americano',
+                  price: 15,
+                },
+                'Coffee Milk': {
+                  name: 'Coffee Milk',
+                  price: 17,
+                },
+                Machiatto: {
+                  name: 'Machiatto',
+                  price: 12.99,
+                },
+                'Iced Cappucino': {
+                  name: 'Iced Cappucino',
+                  price: 23.55,
+                },
+                'Mocha Latte': {
+                  name: 'Mocha Latte',
+                  price: 22,
+                },
+                'Vanilla Latte': {
+                  name: 'Vanilla Latte',
+                  price: 15,
+                },
+                'Brown Sugar Coffee': {
+                  name: 'Brown Sugar Coffee',
+                  price: 17,
+                },
+              },
+              Tea: {
+                'Iced Tea': {
+                  name: 'Iced Tea',
+                  price: 12.99,
+                },
+                'Matcha Latte': {
+                  name: 'Matcha Latte',
+                  price: 23.55,
+                },
+                'Lemon Tea': {
+                  name: 'Lemon Tea',
+                  price: 22,
+                },
+                'Jasmine Tea': {
+                  name: 'Jasmine Tea',
+                  price: 15,
+                },
+                'Milk Tea': {
+                  name: 'Milk Tea',
+                  price: 17,
+                },
+              },
+              Snacks: {
+                'French Fries': {
+                  name: 'French Fries',
+                  price: 12.99,
+                },
+                'Mix Platter': {
+                  name: 'Mix Platter',
+                  price: 23.55,
+                },
+                'Crispy Mushroom': {
+                  name: 'Crispy Mushroom',
+                  price: 22,
+                },
+                'Seafood Mix': {
+                  name: 'Seafood Mix',
+                  price: 15,
+                },
+                'Spicy Wings': {
+                  name: 'Spicy Wings',
+                  price: 17,
+                },
+              },
+            },
+          };
+          console.log('parse complete')
+          NavigationService.navigate('MenuEditScreen', {menuData});
+          setImgState(false);
+        }
+      },
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -195,15 +313,24 @@ const ProfileScreen = () => {
 
         {/* Status Cards */}
         <View style={styles.statusCardsContainer}>
-          <TouchableOpacity style={styles.statusCard}>
+          <TouchableOpacity
+            style={styles.statusCard}
+            onPress={upload}
+            disabled={imgState}>
             <View style={styles.statusContent}>
-              <Text style={styles.statusTitle}>Upload Menu Items</Text>
+              <Text style={styles.statusTitle}>Upload photo of you menu</Text>
               <Text style={styles.statusDescription}>
-                Add your dishes with photos
+                {imgState 
+                  ? "Processing your menu image... Please wait"
+                  : "Upload a photo of your menu to automatically import items"
+                }
               </Text>
             </View>
-            <Icon name="camera" size={24} color="#64748B" />
-            
+            {imgState ? (
+                <ActivityIndicator size="small" color="#0F766E" />
+            ) : (
+              <Icon name="camera" size={24} color="#64748B" />
+            )}
           </TouchableOpacity>
         </View>
 
@@ -456,7 +583,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   statusCard: {
-    paddingRight:25,
+    paddingRight: 25,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',

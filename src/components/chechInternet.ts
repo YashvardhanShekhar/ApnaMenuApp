@@ -6,30 +6,31 @@ export const checkInternet = async () => {
 
   if (!state.isConnected) {
     Snackbar.show({
-      text: 'No internet connection',
+      text: 'It seems that you are not connected to the Internet',
       duration: Snackbar.LENGTH_SHORT,
     });
     return false;
   }
+  return true;
 
-  try {
+  // try {
     
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
+  //   const controller = new AbortController();
+  //   const timeoutId = setTimeout(() => controller.abort(), 3000);
 
-    await fetch('https://www.google.com', {
-      method: 'HEAD',
-      signal: controller.signal,
-    });
+  //   await fetch('https://www.google.com', {
+  //     method: 'HEAD',
+  //     signal: controller.signal,
+  //   });
 
-    clearTimeout(timeoutId);
+  //   clearTimeout(timeoutId);
 
-    return true;
-  } catch (err) {
-    Snackbar.show({
-      text: 'It seems that you are not connected to the Internet',
-      duration: Snackbar.LENGTH_LONG,
-    });
-    return false;
-  }
+  //   return true;
+  // } catch (err) {
+  //   Snackbar.show({
+  //     text: 'It seems that you are not connected to the Internet',
+  //     duration: Snackbar.LENGTH_LONG,
+  //   });
+  //   return false;
+  // }
 };

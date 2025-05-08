@@ -62,7 +62,7 @@ const EditInfo = () => {
           height: 55,
           paddingBottom: 8,
           paddingTop: 8,
-          marginHorizontal: 10,
+          marginHorizontal: 30, // Updated from 10 to 30
           ...styles.shadow,
         },
       });
@@ -115,9 +115,9 @@ const EditInfo = () => {
           keyboardShouldPersistTaps="handled">
           <View style={styles.logoContainer}>
             <TouchableOpacity style={styles.uploadButton}>
-            <View style={styles.logoPlaceholder}>
-              <Icon name="image" size={40} color="#64748B" />
-            </View>
+              <View style={styles.logoPlaceholder}>
+                <Icon name="image" size={40} color="#64748B" />
+              </View>
               {/* <Text style={styles.uploadButtonText}>Upload Logo</Text> */}
             </TouchableOpacity>
           </View>

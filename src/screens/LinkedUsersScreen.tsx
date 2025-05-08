@@ -17,7 +17,11 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import * as Yup from 'yup';
 import {Formik, FieldArray, ErrorMessage, getIn} from 'formik';
 import Snackbar from 'react-native-snackbar';
-import {deleteUsersInUsers, emailExists, saveLinkedUsersDB} from '../services/databaseManager';
+import {
+  deleteUsersInUsers,
+  emailExists,
+  saveLinkedUsersDB,
+} from '../services/databaseManager';
 import {fetchLinkedUsers, saveLinkedUsers} from '../services/storageService';
 import {checkInternet} from '../components/chechInternet';
 
@@ -73,7 +77,7 @@ const LinkedUsersScreen = () => {
           height: 55,
           paddingBottom: 8,
           paddingTop: 8,
-          marginHorizontal: 10,
+          marginHorizontal: 30, // Updated from 10 to 30
         },
       });
     };
@@ -129,7 +133,7 @@ const LinkedUsersScreen = () => {
   const handleSubmit = async values => {
     try {
       // Format data for submission
-      console.log(arr)
+      console.log(arr);
       const ci = await checkInternet();
       if (!ci) {
         return;
@@ -316,8 +320,8 @@ const LinkedUsersScreen = () => {
                                       duration: Snackbar.LENGTH_SHORT,
                                     });
                                   } else if (values.users.length > 1) {
-                                    if(user.isOriginal){
-                                      arr.push(user.email)
+                                    if (user.isOriginal) {
+                                      arr.push(user.email);
                                     }
                                     remove(index);
                                     Snackbar.show({

@@ -2,10 +2,12 @@ import React, {PropsWithChildren} from 'react';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {View, StyleSheet} from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import ProfileScreen from '../screens/ProfileScreen';
 import Home from './HomeNavigator';
 import ProfileNavigator from './ProfileNavigator';
+import chatBotScreen from '../screens/ChatBotScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -30,7 +32,7 @@ const Tabs = () => {
           height: 55,
           paddingBottom: 8,
           paddingTop: 8,
-          marginHorizontal: 10,
+          marginHorizontal: 30,
           ...styles.shadow,
         },
       }}>
@@ -42,6 +44,21 @@ const Tabs = () => {
             <View style={{alignItems: 'center', justifyContent: 'center'}}>
               <Ionicons
                 name="home-outline"
+                size={24}
+                color={focused ? '#000000' : '#a1a1a1'}
+              />
+            </View>
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="chatBot"
+        component={chatBotScreen}
+        options={{
+          tabBarIcon: ({focused}) => (
+            <View style={{alignItems: 'center', justifyContent: 'center'}}>
+              <Ionicons
+                name="chatbubbles-outline"
                 size={24}
                 color={focused ? '#000000' : '#a1a1a1'}
               />
@@ -64,7 +81,6 @@ const Tabs = () => {
           ),
         }}
       />
-      
     </Tab.Navigator>
   );
 };
