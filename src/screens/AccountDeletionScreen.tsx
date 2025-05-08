@@ -65,7 +65,7 @@ const DeleteAccountScreen = () => {
     const loadUserData = async () => {
       try {
         const user = await fetchUser();
-        const url = await fetchUrl();
+        const url: string = (await fetchUrl()) ?? '';
         setEmail(user.email);
         setUrl(url);
       } catch (error) {
@@ -107,7 +107,7 @@ const DeleteAccountScreen = () => {
     };
   }, [navigation]);
 
-  const handleDeleteAccount = async values => {
+  const handleDeleteAccount = async (values: DeleteAccountValues) => {
     setDeleteInProgress(true);
     const ci = await checkInternet();
     if (!ci) {
@@ -229,7 +229,7 @@ const DeleteAccountScreen = () => {
                       (!isValid || isSubmitting || deleteInProgress) &&
                         styles.disabledButton,
                     ]}
-                    onPress={handleSubmit}
+                    onPress={()=>handleSubmit}
                     disabled={!isValid || isSubmitting || deleteInProgress}>
                     {deleteInProgress ? (
                       <ActivityIndicator size="small" color="#FFFFFF" />

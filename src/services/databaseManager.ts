@@ -101,7 +101,7 @@ export const deleteDish = async (category: string, name: string) => {
         },
       });
     }
-  } catch (error) {
+  } catch (error: any) {
     Snackbar.show({
       text: error.message,
       duration: Snackbar.LENGTH_SHORT,

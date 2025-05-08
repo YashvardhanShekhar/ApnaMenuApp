@@ -146,7 +146,7 @@ const ProfileScreen = () => {
         mediaType: 'photo',
         includeBase64: true,
       },
-      async response => {
+      async (response:any) => {
         if (response.didCancel) {
           console.log('User cancelled image picker');
         } else if (response.errorCode) {
@@ -369,14 +369,13 @@ const ProfileScreen = () => {
   );
 };
 
-// Component for displaying contact information items
 const ContactItem = ({
   icon,
   title,
   value,
   placeholder,
   isDescription = false,
-}) => {
+}: ContactItemProps) => {
   const isEmpty = !value || value === 'Not added yet';
 
   return (

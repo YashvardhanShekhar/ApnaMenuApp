@@ -114,7 +114,7 @@ const EditInfo = () => {
           contentContainerStyle={styles.formContainer}
           keyboardShouldPersistTaps="handled">
           <View style={styles.logoContainer}>
-            <TouchableOpacity style={styles.uploadButton}>
+            <TouchableOpacity>
               <View style={styles.logoPlaceholder}>
                 <Icon name="image" size={40} color="#64748B" />
               </View>

@@ -10,7 +10,7 @@ export const saveRestaurantDetails = async (data: any) => {
   const {email, name} = user;
 };
 
-export const addNewDish = async (category, dishName, price) => {
+export const addNewDish = async (category:string, dishName:string, price:number) => {
   try {
     const menuData = await fetchMenu();
     if (menuData) {
@@ -27,7 +27,7 @@ export const addNewDish = async (category, dishName, price) => {
       };
       await saveMenu(updatedMenu);
     } else {
-      const newMenu = {
+      const newMenu:Menu = {
         [category]: {
           [dishName]: {
             name: dishName,

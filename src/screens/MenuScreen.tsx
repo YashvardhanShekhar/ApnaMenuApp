@@ -28,10 +28,11 @@ import {deleteDish, setAvailability} from '../services/databaseManager';
 import RNHapticFeedback from 'react-native-haptic-feedback';
 import {Haptic} from '../components/haptics';
 
-interface MenuItem {
-  name: string;
-  price: number;
-  status: boolean;
+
+interface Menu {
+  [key: string]: {
+    [key: string]: MenuItem;
+  };
 }
 
 type MenuItems = Record<string, Record<string, MenuItem>>;
@@ -95,7 +96,7 @@ const MenuItemsScreen = () => {
   }, [isFocused]);
 
   const getFilteredItems = () => {
-    let filteredMenu = {...menuItems};
+    let filteredMenu:Menu = {...menuItems};
 
     // Filter by search query
     if (searchQuery) {
@@ -106,7 +107,7 @@ const MenuItemsScreen = () => {
 
         Object.keys(menuItems[category]).forEach(itemKey => {
           const item = menuItems[category][itemKey];
-          if (item.name.toLowerCase().includes(searchQuery.toLowerCase())) {
+          if (item?.name?.toLowerCase().includes(searchQuery.toLowerCase())) {
             filteredItems[itemKey] = item;
           }
         });
@@ -177,7 +178,7 @@ const MenuItemsScreen = () => {
     await saveStats(totalItems, availableItems, soldOutItems);
   };
 
-  const handleAddDish = (category: string) => {
+  const handleAddDish = (category: string|null) => {
     NavigationService.navigate('AddDish', {
       category,
     });
@@ -432,9 +433,11 @@ const MenuItemsScreen = () => {
                             {isLongPressed ? (
                               <TouchableOpacity
                                 style={styles.deleteButton}
-                                onPress={() =>
-                                  handleDelete(category, item.name)
-                                }>
+                                onPress={() => {
+                                  if (item.name) {
+                                    toggleAvailability(category, item.name);
+                                  }
+                                }}>
                                 <Icon
                                   name="trash-2"
                                   size={20}
@@ -444,7 +447,9 @@ const MenuItemsScreen = () => {
                             ) : (
                               <TouchableOpacity
                                 onPress={() => {
-                                  toggleAvailability(category, item.name);
+                                  if (item.name) {
+                                    toggleAvailability(category, item.name);
+                                  }
                                 }}
                                 style={[
                                   styles.statusBadge,

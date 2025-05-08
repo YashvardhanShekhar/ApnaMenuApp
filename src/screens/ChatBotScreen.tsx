@@ -12,7 +12,7 @@ import {ActivityIndicator} from 'react-native-paper';
 import {checkInternet} from '../components/checkInternet';
 const ai = new GoogleGenAI({apiKey: GEMINI_API_KEY});
 
-export const uploadPhoto = async image => {
+export const uploadPhoto = async (image:string) => {
   console.log(image);
   const ci = checkInternet();
   if (!ci) {
