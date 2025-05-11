@@ -17,7 +17,7 @@ import {LinearGradient} from 'react-native-linear-gradient';
 import {useNavigation} from '@react-navigation/native';
 import {ActivityIndicator} from 'react-native-paper';
 import {Haptic, HapticHeavy, HapticMedium} from '../components/haptics';
-import {chat} from '../components/genai';
+import {chatBot, setupModel} from '../components/genai';
 import {fetchMessages, saveMessages} from '../services/storageService';
 
 const ChatScreen = () => {
@@ -44,6 +44,7 @@ const ChatScreen = () => {
   useEffect(() => {
     const fetch = async () => {
       const msg = await fetchMessages();
+      console.log('Fetched messages:', msg);
       if (msg.length > 0) {
         setMessages(msg);
       }
@@ -59,7 +60,7 @@ const ChatScreen = () => {
 
     // Add user message
     const newUserMessage = {
-      id: String(Date.now()-1),
+      id: String(Date.now()),
       content: inputText,
       role: 'user',
     };
@@ -70,23 +71,26 @@ const ChatScreen = () => {
     // Show typing indicator
     setIsTyping(true);
 
-    const botMsg = await chat(newUserMessage.content, messages);
-    // const botMsg = "how can help you?"; // Placeholder for AI response
+    const botMsg = await chatBot(newUserMessage.content);
+    if(!botMsg) {
+      setIsTyping(false);
+      return;
+    }
 
     const aiResponse = {
-      id: String(Date.now() + 1),
+      id: String(Date.now()),
       content: botMsg,
       role: 'model',
     };
 
     setMessages((prevMessages: Message[]) => {
       const updated = [...prevMessages, aiResponse];
-      const MAX_MESSAGES = 20;
-      return updated.slice(-MAX_MESSAGES); // Keep only last 10 messages
+      return updated.slice(-60); // Keep only last 30 messages
     });
 
     setIsTyping(false);
     HapticHeavy();
+    // await saveMessagesDB(messages);
     await saveMessages(messages);
   };
 
@@ -157,13 +161,15 @@ const ChatScreen = () => {
 
         <TouchableOpacity
           style={styles.menuButton}
-          onPress={() => {setMessages([
-            {
-              id: '1',
-              content: 'Hello! How can I help you today?',
-              role: 'model',
-            },
-          ]);}}
+          onPress={() => {
+            setMessages([
+              {
+                id: '1',
+                content: 'Hello! How can I help you today?',
+                role: 'model',
+              },
+            ]);
+          }}
           hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
           <Ionicons name="ellipsis-vertical" size={20} color="#64748B" />
         </TouchableOpacity>
@@ -213,14 +219,16 @@ const ChatScreen = () => {
             <TouchableOpacity
               style={[
                 styles.sendButton,
-                !inputText.trim() ? styles.sendButtonDisabled : null,
+                !inputText.trim() || isTyping
+                  ? styles.sendButtonDisabled
+                  : null,
               ]}
               onPress={handleSend}
-              disabled={!inputText.trim()}>
+              disabled={!inputText.trim() || isTyping}>
               <Ionicons
                 name="send"
                 size={20}
-                color={inputText.trim() ? '#FFFFFF' : '#CBD5E1'}
+                color={inputText.trim() || isTyping ? '#FFFFFF' : '#CBD5E1'}
               />
             </TouchableOpacity>
           </View>

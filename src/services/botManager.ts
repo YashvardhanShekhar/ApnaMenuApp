@@ -2,7 +2,13 @@ import firestore from '@react-native-firebase/firestore';
 import Snackbar from 'react-native-snackbar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {addNewDish, fetchUrl, saveProfileInfo} from './storageService';
-import { addNewDishDB, deleteDish, deleteDishDB, dishExists, saveProfileInfoDB } from './databaseManager';
+import {
+  addNewDishDB,
+  deleteDish,
+  deleteDishDB,
+  dishExists,
+  saveProfileInfoDB,
+} from './databaseManager';
 
 export const botUpdateMenuItem = async args => {
   try {
@@ -29,16 +35,20 @@ export const botUpdateMenuItem = async args => {
         {merge: true},
       )
       .then(() => {
+        Snackbar.show({
+          text: `${args.name} with ${args.price}rs updated successfully`,
+          duration: Snackbar.LENGTH_SHORT,
+        });
         return true;
       });
   } catch (error: any) {
     console.log(error.message);
+    return false;
   }
-  return false;
 };
 
 export const botDeleteMenuItem = async args => {
-    // await deleteDish(args.category, args.name);
+  // await deleteDish(args.category, args.name);
   return await deleteDishDB(args.category, args.name);
 };
 
@@ -51,8 +61,12 @@ export const botAddMenuItem = async args => {
   return await addNewDishDB(args.category, args.name, args.price);
 };
 
-export const updateProfileInformation = async (info) => {
-    const res = await saveProfileInfoDB(info)
-    res && await saveProfileInfo(info);
-    return res ? true : false;
+export const botUpdateProfileInfo = async args => {
+  const res = await saveProfileInfoDB(args);
+  console.log('res', res);
+  if (res) {
+    await saveProfileInfo(args);
+    return true;
+  }
+  return false;
 };

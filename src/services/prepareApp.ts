@@ -3,6 +3,7 @@ import {fetchAllData} from './databaseManager';
 import BootSplash from 'react-native-bootsplash';
 import {clearStorage} from './storageService';
 import * as NavigationService from './navigationService';
+import { setupModel } from '../components/genai';
 
 export const prepareApp = async () => {
   try {

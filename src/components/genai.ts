@@ -1,12 +1,26 @@
 import {createUserContent, GoogleGenAI, Type} from '@google/genai';
 import Snackbar from 'react-native-snackbar';
 import {navigate} from '../services/navigationService';
-import {addMenu, fetchMenu, fetchProfileInfo, fetchUser} from '../services/storageService';
+import {
+  addMenu,
+  fetchMenu,
+  fetchMessages,
+  fetchProfileInfo,
+  fetchUser,
+} from '../services/storageService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { botAddMenuItem, botDeleteMenuItem, botUpdateMenuItem } from '../services/botManager';
+import {
+  botAddMenuItem,
+  botDeleteMenuItem,
+  botUpdateMenuItem,
+  botUpdateProfileInfo,
+  botUpdateProfileInformation,
+} from '../services/botManager';
+import { checkInternet } from './checkInternet';
 
 // Configure the client
 const ai = new GoogleGenAI({apiKey: process.env.GEMINI_API_KEY});
+let chatBotOuter: any;
 
 export const parseMenu = async (image: string) => {
   const promptText = `
@@ -91,9 +105,7 @@ export const parseMenu = async (image: string) => {
 };
 
 
-
-
-export const chat = async (message: string, allPrevMsg: Message[]) => {
+export const setupModel = async () => {
   const addMenuItem = {
     name: 'addMenuItem',
     description:
@@ -150,43 +162,78 @@ export const chat = async (message: string, allPrevMsg: Message[]) => {
         },
         availability: {
           type: 'boolean',
-          description: 'Availability status (true/false).',
+          description:
+            'Availability status (true/false) if not mention set the previous one.',
         },
         price: {
           type: Type.NUMBER,
-          description: 'Updated price.',
+          description: 'Updated price if not mention set the previous one.',
         },
         category: {
           type: Type.STRING,
           description: 'Category name (e.g., Drinks, Main Course, Snacks).', //Add Category
         },
       },
-      required: ['name', 'category'], // Require Category
+      required: ['name', 'category', 'availability', 'price'],
     },
   };
+  const updateProfileInfo = {
+    name: 'updateProfileInfo',
+    description:
+      'Updates or sets user restaurant profile information such as name, phone number, address or description.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        name: {
+          type: Type.STRING,
+          description:
+            'Updated name of the user if not given set the previous one.',
+        },
+        phoneNumber: {
+          type: Type.STRING,
+          description:
+            'Updated phone number of the user if not given set the previous one and must contain 10 digits if not ask user to give complete information.',
+        },
+        address: {
+          type: Type.STRING,
+          description:
+            'Updated address of the user if not given set the previous one.',
+        },
+        description: {
+          type: Type.STRING,
+          description:
+            'Personal description or bio of the user if not given set the previous one.',
+        },
+      },
+    },
+  };
+  
 
-  console.log('Message:', ...allPrevMsg);
-  const prevMsg = allPrevMsg.map((msg) => ({
+  const allPrevMsg = await fetchMessages();
+
+  const prevMsg = allPrevMsg.filter((msg: Message) => msg.content).map((msg: Message) => ({
     role: msg.role,
-    parts: [{text: msg.content}],
-  }))
+    parts: [{text: msg.content}]
+  }));
+  const lastTenMessages = prevMsg.slice(-10);
+  console.log('Last 10 Messages:', lastTenMessages);
 
   const menu = await fetchMenu();
   const profile = await fetchProfileInfo();
   const {name} = await fetchUser();
-  console.log(name)
 
-  const promptText = `
+  const instruction = `
   You are ApnaMenuBot, a smart and friendly restaurant assistant.
   
   Your job is to:
-  - Chat naturally, be creative and helpfully with the user user's name ${name}  .
+  - always give some response in text even if the function is called its most important.
+  - Chat naturally, be creative and helpfully with the user, user's name ${name}.
   - Answer questions about the menu (e.g. price, availability, category).
   - Respond to user commands like **add**, **update**, or **delete** menu items.
+  - Provide and change information about the restaurant ( name, address, phone number or description).
   - Show the full menu when asked.
   - Handle unrelated questions (like "what's the weather?") with a casual reply or use the appropriate tool if available.
   - If the message is unclear, ask polite follow-up questions.
-  - **always give some response in text** even if the function is called its most important.
   
   You can call functions when appropriate:
   - Use **addMenuItem** when the user asks to add a dish (mention dish name, category, and price).
@@ -219,93 +266,135 @@ export const chat = async (message: string, allPrevMsg: Message[]) => {
   ${JSON.stringify(menu)}
   
   `;
-  
-
 
   const config = {
-    tools: [{
+    systemInstruction: instruction,
+    tools: [
+      {
         functionDeclarations: [
           addMenuItem,
           deleteMenuItem,
           updateMenuItem,
+          updateProfileInfo,
         ],
-    }],
+      },
+    ],
   };
+  try {
+    const chat = ai.chats.create({
+      model: 'gemini-2.0-flash',
+      history: [
+        {
+          role: 'user',
+          parts: [{text: 'hi'}],
+        },
+        ...lastTenMessages,
+      ],
+      config: config,
+    });
 
-  const contents = [
-    {
-      role: 'user',
-      parts: [{text: promptText}],
-    },
-    ...prevMsg,
-    {
-      role: 'user',
-      parts: [{text: message}],
-    },
-  ];
-
-  console.log('Contents:', contents);
-
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.0-flash',
-    contents: contents,
-    config: config,
-  });
-
-  console.log('Response:', response);
-
-  if (response.functionCalls && response.functionCalls.length > 0) {
-    const functionCall = response.functionCalls[0];
-    console.log('Function Call:', functionCall);
-    const functionName = functionCall.name;
-    const args:any = functionCall.args;
-
-    let result;
-    let menuUpdateMessage = ''; // Capture message to update user
-
-    switch (functionName) {
-      case 'addMenuItem':
-        result = await botAddMenuItem(args);
-        switch (result) {
-          case false:
-            menuUpdateMessage = `Failed to add ${args.name} to ${args.category}.`;
-            break;
-          case true:
-            menuUpdateMessage = `Added ${args.name} to ${args.category}.`;
-            break;
-          case 'exists':
-            menuUpdateMessage = `${args.name} already exists in ${args.category}.`;
-            break;
-        }
-        break;
-      case 'deleteMenuItem':
-        result = await botDeleteMenuItem(args);
-        switch (result) {
-          case true:
-            menuUpdateMessage = `Deleted ${args.name} from ${args.category}.`;
-            break;
-          case false:
-            menuUpdateMessage = `Failed to delete ${args.name} from ${args.category}.`;
-            break;
-        }
-        break;
-      case 'updateMenuItem':
-        result = await botUpdateMenuItem(args);
-        switch (result) {
-          case true:
-            menuUpdateMessage = `updated ${args.name} with price ${
-              args.price
-            } and is ${args.availability ? 'available' : 'sold out'} in ${
-              args.category
-            }.`;
-            break;
-          case false:
-            menuUpdateMessage = `Failed to update ${args.name} in ${args.category}.`;
-            break;
-        }
-        break;
-    }
-    return response.text + menuUpdateMessage;
+    chatBotOuter = chat;
+  } catch (error) {
+    console.error('Error setting up chat model:', error.message);
   }
-  return response.text;
 };
+
+export const chatBot = async (msg: string) => {
+  const ci = checkInternet()
+  if( !ci ){
+    return null
+  }
+  if (!chatBotOuter) {
+    await setupModel();
+  }
+  try {
+    const response = await chatBotOuter.sendMessage({
+      message: msg,
+    });
+
+    console.log('Response:', response);
+
+    if (response.functionCalls && response.functionCalls.length > 0) {
+      const functionCall = response.functionCalls[0];
+      console.log('Function Call:', functionCall);
+      const functionName = functionCall.name;
+      const args: any = functionCall.args;
+
+      let result;
+      let menuUpdateMessage = '';
+
+      switch (functionName) {
+        case 'addMenuItem':
+          result = await botAddMenuItem(args);
+          switch (result) {
+            case false:
+              menuUpdateMessage = `Failed to add ${args.name} to ${args.category}.`;
+              break;
+            case true:
+              menuUpdateMessage = `Added ${args.name} to ${args.category}.`;
+              break;
+            case 'exists':
+              menuUpdateMessage = `${args.name} already exists in ${args.category}.`;
+              break;
+          }
+          break;
+        case 'deleteMenuItem':
+          result = await botDeleteMenuItem(args);
+          switch (result) {
+            case true:
+              menuUpdateMessage = `Deleted ${args.name} from ${args.category}.`;
+              break;
+            case false:
+              menuUpdateMessage = `Failed to delete ${args.name} from ${args.category}.`;
+              break;
+          }
+          break;
+        case 'updateMenuItem':
+          console.log('Update Menu Item:', args);
+          result = await botUpdateMenuItem(args);
+          switch (result) {
+            case true:
+              menuUpdateMessage = `updated ${args.name} with price ${
+                args.price
+              } and is ${args.availability ? 'available' : 'sold out'} in ${
+                args.category
+              }.`;
+              break;
+            case false:
+              menuUpdateMessage = `Failed to update ${args.name} in ${args.category}.`;
+              break;
+          }
+          break;
+        case 'updateProfileInfo':
+          console.log('Update Profile Info:', args);
+          result = await botUpdateProfileInfo(args);
+          switch (result) {
+            case true:
+              menuUpdateMessage = `Profile updated successfully with phone: ${args.phone}, address: ${args.address}, and description: "${args.description}".`;
+              break;
+            case false:
+              menuUpdateMessage = `Failed to update profile information.`;
+              break;
+          }
+          break;
+      }
+      return response.text ? response.text : menuUpdateMessage;
+    }
+    return response.text;
+  } catch (error:any) {
+    if (error.code === 429) {
+      console.error('Quota limit reached:', error.message);
+      Snackbar.show({
+        text: 'Rate limit exceeded. Please try again later.',
+        duration: Snackbar.LENGTH_SHORT,
+      });
+      return null;
+    }
+    console.error('Error in chatBot:', error.message);
+    Snackbar.show({
+      text: 'Error in chatBot try again',
+      duration: Snackbar.LENGTH_SHORT,
+    });
+  }
+};
+

@@ -312,15 +312,15 @@ export const saveProfileInfoDB = async (info: ProfileInformation) => {
             textColor: '#0F766E',
           },
         });
-        return true;
       });
+      return true;
   } catch (error: any) {
     Snackbar.show({
       text: error.message,
       duration: Snackbar.LENGTH_SHORT,
     });
+    return false;
   }
-  return false;
 };
 
 export const emailExists = async (email: string): Promise<boolean> => {

@@ -43,6 +43,8 @@ const ProfileScreen = () => {
   const [stats, setStats] = useState<Stats>({});
   const [refreshing, setRefreshing] = useState(false);
 
+  let loadData = async () => {};
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     const ci = await checkInternet();
@@ -51,6 +53,7 @@ const ProfileScreen = () => {
       return;
     }
     await syncData();
+    await loadData();
     setRefreshing(false);
   }, []);
 
@@ -60,7 +63,7 @@ const ProfileScreen = () => {
   });
 
   useEffect(() => {
-    const loadData = async () => {
+    loadData = async () => {
       try {
         setRefreshing(true);
         loadStats();
