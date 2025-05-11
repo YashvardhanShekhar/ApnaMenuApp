@@ -156,3 +156,16 @@ export const addMenu = async (menu:Menu) => {
 
   await saveMenu(updatedMenu);
 }
+
+export const fetchMessages = async () => {
+  const res = await AsyncStorage.getItem('messages');
+  if(res){
+    return JSON.parse(res);
+  }else{
+    return [];
+  }
+}
+
+export const saveMessages = async (messages: Message[]) => {
+  await AsyncStorage.setItem('messages', JSON.stringify(messages));
+};

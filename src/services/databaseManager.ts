@@ -14,6 +14,7 @@ export const addNewDishDB = async (
     const status = await dishExists(category, name);
     if (status) {
       throw new Error('Dish already exists');
+      return 'exists';
     }
     const url = await AsyncStorage.getItem('url');
     const dishData = {
@@ -47,16 +48,18 @@ export const addNewDishDB = async (
             textColor: '#0F766E',
           },
         });
+        return true;
       });
   } catch (error: any) {
     Snackbar.show({
       text: error.message,
       duration: Snackbar.LENGTH_SHORT,
     });
+    return false;
   }
 };
 
-export const deleteDish = async (category: string, name: string) => {
+export const deleteDishDB = async (category: string, name: string) => {
   try {
     const url = await AsyncStorage.getItem('url');
     const path = 'menu.' + category + '.' + name;
@@ -106,7 +109,9 @@ export const deleteDish = async (category: string, name: string) => {
       text: error.message,
       duration: Snackbar.LENGTH_SHORT,
     });
+    return false;
   }
+  return true;
 };
 
 export const setAvailability = async (
@@ -307,6 +312,7 @@ export const saveProfileInfoDB = async (info: ProfileInformation) => {
             textColor: '#0F766E',
           },
         });
+        return true;
       });
   } catch (error: any) {
     Snackbar.show({
@@ -314,6 +320,7 @@ export const saveProfileInfoDB = async (info: ProfileInformation) => {
       duration: Snackbar.LENGTH_SHORT,
     });
   }
+  return false;
 };
 
 export const emailExists = async (email: string): Promise<boolean> => {

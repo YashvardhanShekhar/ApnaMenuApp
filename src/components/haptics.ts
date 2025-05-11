@@ -5,3 +5,15 @@ export const Haptic = ()=>{
       enableVibrateFallback: true,
     });
 }
+
+export const HapticHeavy = ()=>{
+    RNHapticFeedback.trigger('impactHeavy', {
+      enableVibrateFallback: true,
+    });
+}
+
+export const HapticMedium = ()=>{
+    RNHapticFeedback.trigger('impactMedium', {
+      enableVibrateFallback: true,
+    });
+}

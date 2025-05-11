@@ -62,3 +62,10 @@ interface DeleteAccountValues {
   email: string;
   restaurantUrl: string;
 }
+
+interface Message {
+  id: string;
+  content: string;
+  role: 'user' | 'model';
+}
+

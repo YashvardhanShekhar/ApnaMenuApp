@@ -55,6 +55,7 @@ const Tabs = () => {
         name="chatBot"
         component={chatBotScreen}
         options={{
+          tabBarStyle: {display: 'none'},
           tabBarIcon: ({focused}) => (
             <View style={{alignItems: 'center', justifyContent: 'center'}}>
               <Ionicons

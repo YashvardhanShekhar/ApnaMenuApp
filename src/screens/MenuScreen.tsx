@@ -24,7 +24,7 @@ import {
 } from '../services/storageService';
 import * as NavigationService from '../services/navigationService';
 import {checkInternet} from '../components/checkInternet';
-import {deleteDish, setAvailability} from '../services/databaseManager';
+import {deleteDish, deleteDishDB, setAvailability} from '../services/databaseManager';
 import RNHapticFeedback from 'react-native-haptic-feedback';
 import {Haptic} from '../components/haptics';
 
@@ -207,7 +207,7 @@ const MenuItemsScreen = () => {
 
   // Handle delete item
   const handleDelete = async (category: string, item: string) => {
-    await deleteDish(category, item);
+    await deleteDishDB(category, item);
     const updatedMenu = setMenuItems(prevMenuItems => {
       const updatedMenu = {...prevMenuItems};
       delete updatedMenu[category][item];
@@ -435,7 +435,7 @@ const MenuItemsScreen = () => {
                                 style={styles.deleteButton}
                                 onPress={() => {
                                   if (item.name) {
-                                    toggleAvailability(category, item.name);
+                                    handleDelete(category, item.name);
                                   }
                                 }}>
                                 <Icon
