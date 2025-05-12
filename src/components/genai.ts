@@ -14,13 +14,11 @@ import {
   botDeleteMenuItem,
   botUpdateMenuItem,
   botUpdateProfileInfo,
-  botUpdateProfileInformation,
 } from '../services/botManager';
-import { checkInternet } from './checkInternet';
+import {checkInternet} from './checkInternet';
 
 // Configure the client
 const ai = new GoogleGenAI({apiKey: process.env.GEMINI_API_KEY});
-let chatBotOuter: any;
 
 export const parseMenu = async (image: string) => {
   const promptText = `
@@ -104,79 +102,118 @@ export const parseMenu = async (image: string) => {
   return menuData;
 };
 
-
 export const setupModel = async () => {
   const addMenuItem = {
     name: 'addMenuItem',
     description:
-      'Adds a new dish to the restaurant menu under a specified category.', // KEY CHANGE
+      'Adds new dish or multiple dishes to the restaurant menu under specified categories.',
     parameters: {
       type: Type.OBJECT,
       properties: {
-        name: {
-          type: Type.STRING,
-          description: 'Name of the dish.',
-        },
-        price: {
-          type: Type.NUMBER,
-          description: 'Price in local currency.',
-        },
-        category: {
-          type: Type.STRING,
-          description: 'Category name (e.g., Drinks, Main Course, Snacks).', // KEY CHANGE
+        items: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              name: {
+                type: Type.STRING,
+                description: 'Name of the dish.',
+              },
+              price: {
+                type: Type.NUMBER,
+                description: 'Price in local currency.',
+              },
+              category: {
+                type: Type.STRING,
+                description:
+                  'Category name (e.g., Drinks, Main Course, Snacks).',
+              },
+              description: {
+                type: Type.STRING,
+                description: 'A short description of the dish',
+              },
+              availability: {
+                type: Type.BOOLEAN,
+                description:
+                  'Indicates if the dish is currently available.  Defaults to true if not provided.',
+              },
+            },
+            required: ['name', 'price', 'category'],
+          },
         },
       },
-      required: ['name', 'price', 'category'],
+      required: ['items'],
     },
   };
 
   const deleteMenuItem = {
     name: 'deleteMenuItem',
     description:
-      'Deletes a dish from the restaurant menu under a specified category.',
+      'Deletes one or multiple dishes from the restaurant menu under specified categories.',
     parameters: {
       type: Type.OBJECT,
       properties: {
-        name: {
-          type: Type.STRING,
-          description: 'Name of the dish.',
-        },
-        category: {
-          type: Type.STRING,
-          description: 'Category name (e.g., Drinks, Main Course, Snacks).', // Add category
+        items: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              name: {
+                type: Type.STRING,
+                description: 'Name of the dish to delete.',
+              },
+              category: {
+                type: Type.STRING,
+                description:
+                  'Category name (e.g., Drinks, Main Course, Snacks).',
+              },
+            },
+            required: ['name', 'category'],
+          },
         },
       },
-      required: ['name', 'category'],
+      required: ['items'],
     },
   };
+
   const updateMenuItem = {
     name: 'updateMenuItem',
     description:
-      'Updates dish price or availability under a specified category.',
+      'Updates one or many dishes in the restaurant menu under specified categories.',
     parameters: {
       type: Type.OBJECT,
       properties: {
-        name: {
-          type: Type.STRING,
-          description: 'Name of the dish.',
-        },
-        availability: {
-          type: 'boolean',
-          description:
-            'Availability status (true/false) if not mention set the previous one.',
-        },
-        price: {
-          type: Type.NUMBER,
-          description: 'Updated price if not mention set the previous one.',
-        },
-        category: {
-          type: Type.STRING,
-          description: 'Category name (e.g., Drinks, Main Course, Snacks).', //Add Category
+        items: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              name: {
+                type: Type.STRING,
+                description: 'Name of the dish to update.',
+              },
+              category: {
+                type: Type.STRING,
+                description:
+                  'Category name (e.g., Drinks, Main Course, Snacks).',
+              },
+              availability: {
+                type: Type.BOOLEAN,
+                description: 'Availability status (true/false).',
+              },
+              price: {
+                type: Type.NUMBER,
+                description: 'Updated price.',
+              },
+            },
+            required: ['name', 'category'],
+          },
         },
       },
-      required: ['name', 'category', 'availability', 'price'],
+      required: ['items'],
     },
   };
+
   const updateProfileInfo = {
     name: 'updateProfileInfo',
     description:
@@ -207,14 +244,15 @@ export const setupModel = async () => {
       },
     },
   };
-  
 
   const allPrevMsg = await fetchMessages();
 
-  const prevMsg = allPrevMsg.filter((msg: Message) => msg.content).map((msg: Message) => ({
-    role: msg.role,
-    parts: [{text: msg.content}]
-  }));
+  const prevMsg = allPrevMsg
+    .filter((msg: Message) => msg.content)
+    .map((msg: Message) => ({
+      role: msg.role,
+      parts: [{text: msg.content}],
+    }));
   const lastTenMessages = prevMsg.slice(-10);
   console.log('Last 10 Messages:', lastTenMessages);
 
@@ -293,27 +331,41 @@ export const setupModel = async () => {
       config: config,
     });
 
-    chatBotOuter = chat;
-  } catch (error) {
+    return chat;
+  } catch (error: any) {
     console.error('Error setting up chat model:', error.message);
   }
 };
 
-export const chatBot = async (msg: string) => {
-  const ci = checkInternet()
-  if( !ci ){
-    return null
+export const chatBot = async (
+  msg: string,
+  isMsg: boolean,
+  base64Audio: string,
+) => {
+  const chat = await setupModel();
+  if (!chat) {
+    console.error('Failed to initialize setup model');
+    return null;
   }
-  if (!chatBotOuter) {
-    await setupModel();
-  }
+
   try {
-    const response = await chatBotOuter.sendMessage({
-      message: msg,
-    });
+    console.log('message is going to send');
+    const response = isMsg
+      ? await chat.sendMessage({
+          message: msg,
+        })
+      : await chat.sendMessage({
+          message: {
+            inlineData: {
+              mimeType: 'audio/mp4',
+              data: base64Audio,
+            },
+          },
+        });
 
     console.log('Response:', response);
 
+    let menuUpdateMessage = '';
     if (response.functionCalls && response.functionCalls.length > 0) {
       const functionCall = response.functionCalls[0];
       console.log('Function Call:', functionCall);
@@ -321,56 +373,28 @@ export const chatBot = async (msg: string) => {
       const args: any = functionCall.args;
 
       let result;
-      let menuUpdateMessage = '';
 
       switch (functionName) {
         case 'addMenuItem':
-          result = await botAddMenuItem(args);
-          switch (result) {
-            case false:
-              menuUpdateMessage = `Failed to add ${args.name} to ${args.category}.`;
-              break;
-            case true:
-              menuUpdateMessage = `Added ${args.name} to ${args.category}.`;
-              break;
-            case 'exists':
-              menuUpdateMessage = `${args.name} already exists in ${args.category}.`;
-              break;
-          }
+          menuUpdateMessage = await botAddMenuItem(args);
           break;
         case 'deleteMenuItem':
-          result = await botDeleteMenuItem(args);
-          switch (result) {
-            case true:
-              menuUpdateMessage = `Deleted ${args.name} from ${args.category}.`;
-              break;
-            case false:
-              menuUpdateMessage = `Failed to delete ${args.name} from ${args.category}.`;
-              break;
-          }
+          menuUpdateMessage = await botDeleteMenuItem(args);
           break;
         case 'updateMenuItem':
           console.log('Update Menu Item:', args);
-          result = await botUpdateMenuItem(args);
-          switch (result) {
-            case true:
-              menuUpdateMessage = `updated ${args.name} with price ${
-                args.price
-              } and is ${args.availability ? 'available' : 'sold out'} in ${
-                args.category
-              }.`;
-              break;
-            case false:
-              menuUpdateMessage = `Failed to update ${args.name} in ${args.category}.`;
-              break;
-          }
+          menuUpdateMessage = await botUpdateMenuItem(args);
           break;
         case 'updateProfileInfo':
           console.log('Update Profile Info:', args);
           result = await botUpdateProfileInfo(args);
           switch (result) {
             case true:
-              menuUpdateMessage = `Profile updated successfully with phone: ${args.phone}, address: ${args.address}, and description: "${args.description}".`;
+              menuUpdateMessage = `Profile updated successfully with ${
+                args.phoneNumber ? `phone "${args.phoneNumber}"` : ''
+              }${args.address ? `, address "${args.address}"` : ''}${
+                args.description ? `, description: "${args.description}"` : ''
+              }`;
               break;
             case false:
               menuUpdateMessage = `Failed to update profile information.`;
@@ -378,10 +402,12 @@ export const chatBot = async (msg: string) => {
           }
           break;
       }
-      return response.text ? response.text : menuUpdateMessage;
+      console.log(response.text + ' ' + response.text === undefined);
+      return response.text === undefined ? menuUpdateMessage : response.text;
+    } else {
+      return response.text;
     }
-    return response.text;
-  } catch (error:any) {
+  } catch (error: any) {
     if (error.code === 429) {
       console.error('Quota limit reached:', error.message);
       Snackbar.show({
@@ -390,11 +416,17 @@ export const chatBot = async (msg: string) => {
       });
       return null;
     }
-    console.error('Error in chatBot:', error.message);
+    if (error.message === 'Network request failed') {
+      Snackbar.show({
+        text: 'it seems your internet connection is slow',
+        duration: Snackbar.LENGTH_SHORT,
+      });
+      console.warn('Network error: Please check your internet connection.');
+    }
+    console.error(error);
     Snackbar.show({
-      text: 'Error in chatBot try again',
+      text: 'Something went wrong try again',
       duration: Snackbar.LENGTH_SHORT,
     });
   }
 };
-

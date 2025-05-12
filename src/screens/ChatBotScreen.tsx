@@ -19,6 +19,9 @@ import {ActivityIndicator} from 'react-native-paper';
 import {Haptic, HapticHeavy, HapticMedium} from '../components/haptics';
 import {chatBot, setupModel} from '../components/genai';
 import {fetchMessages, saveMessages} from '../services/storageService';
+import { saveMessagesDB } from '../services/databaseManager';
+import { checkInternet } from '../components/checkInternet';
+import Mic from '../components/chatBot/audioInput';
 
 const ChatScreen = () => {
   const [messages, setMessages] = useState<Message[]>([
@@ -30,8 +33,9 @@ const ChatScreen = () => {
   ]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const flatListRef = useRef(null);
+  const flatListRef = useRef<FlatList>(null);
   const navigation = useNavigation();
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   useEffect(() => {
     setTimeout(() => {
@@ -39,11 +43,26 @@ const ChatScreen = () => {
         flatListRef.current.scrollToEnd({animated: true});
       }
     }, 100);
-  }, [messages]);
+  }, [messages, keyboardVisible, navigation]);
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
+      setKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   useEffect(() => {
     const fetch = async () => {
       const msg = await fetchMessages();
+      await new Promise(resolve => setTimeout(resolve, 2000));
       console.log('Fetched messages:', msg);
       if (msg.length > 0) {
         setMessages(msg);
@@ -54,12 +73,16 @@ const ChatScreen = () => {
 
   const handleSend = async () => {
     if (inputText.trim() === '') return;
+    
+    const ci = await checkInternet();
+    if (!ci) {
+      return;
+    }
 
-    // Haptic feedback when sending message
+    const oldMessages = messages;
     Haptic();
 
-    // Add user message
-    const newUserMessage = {
+    const newUserMessage:Message = {
       id: String(Date.now()),
       content: inputText,
       role: 'user',
@@ -68,33 +91,39 @@ const ChatScreen = () => {
     setMessages([...messages, newUserMessage]);
     setInputText('');
 
-    // Show typing indicator
     setIsTyping(true);
 
-    const botMsg = await chatBot(newUserMessage.content);
+    const botMsg = await chatBot(newUserMessage.content, true, '');
     if(!botMsg) {
       setIsTyping(false);
       return;
     }
 
-    const aiResponse = {
+    const aiResponse:Message = {
       id: String(Date.now()),
       content: botMsg,
       role: 'model',
     };
-
-    setMessages((prevMessages: Message[]) => {
-      const updated = [...prevMessages, aiResponse];
-      return updated.slice(-60); // Keep only last 30 messages
-    });
+    
+    const prevMessage = [...oldMessages, newUserMessage, aiResponse];
+    const tempPrevMessage = prevMessage.slice(-100)
+    setMessages(tempPrevMessage);
 
     setIsTyping(false);
     HapticHeavy();
-    // await saveMessagesDB(messages);
-    await saveMessages(messages);
+    const deleteStatus = messages.length>100;
+    await saveMessagesDB(
+      deleteStatus,
+      prevMessage[0],
+      prevMessage[1],
+      newUserMessage,
+      aiResponse,
+    );
+    await saveMessages(tempPrevMessage);
+    console.log('chats updated in database')
   };
 
-  const renderItem = ({item}) => {
+  const renderItem = ({item}:{item:Message}) => {
     const isUser = item.role === 'user';
 
     return (
@@ -183,10 +212,7 @@ const ChatScreen = () => {
         keyExtractor={item => item.id}
         contentContainerStyle={styles.messagesContent}
         style={styles.messagesContainer}
-        onContentSizeChange={() =>
-          flatListRef.current?.scrollToEnd({animated: true})
-        }
-        onLayout={() => flatListRef.current?.scrollToEnd({animated: true})}
+
         ListFooterComponent={renderTypingIndicator}
       />
 
@@ -194,26 +220,18 @@ const ChatScreen = () => {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 10}>
+
         <View style={styles.inputContainer}>
           <View style={styles.inputWrapper}>
-            <TouchableOpacity
-              style={styles.micButton}
-              onPress={() => {
-                // Haptic feedback
-                Haptic();
-                // Microphone functionality would be implemented here
-              }}>
-              <Ionicons name="mic" size={20} color="#64748B" />
-            </TouchableOpacity>
+            <Mic/>
 
             <TextInput
-              style={styles.input}
+              style={[styles.input, {maxHeight: 100}]}
               value={inputText}
               onChangeText={setInputText}
               placeholder="Type a message..."
               placeholderTextColor="#94A3B8"
               multiline
-              maxHeight={100}
             />
 
             <TouchableOpacity
@@ -357,17 +375,6 @@ const styles = StyleSheet.create({
     shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.2,
     shadowRadius: 3,
-  },
-  micButton: {
-    marginRight: 12,
-    backgroundColor: '#F1F5F9',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
   },
   sendButtonDisabled: {
     backgroundColor: '#E2E8F0',

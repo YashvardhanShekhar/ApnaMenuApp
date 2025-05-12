@@ -127,6 +127,7 @@ dependencies {
         implementation jscFlavor
     }
     implementation project(':react-native-exit-app') // Add this line
+    implementation project(':react-native-audio-recorder-player')
 }
 
 apply plugin: 'com.android.application'

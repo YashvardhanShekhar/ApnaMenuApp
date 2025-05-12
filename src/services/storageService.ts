@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {fetchAllData} from './databaseManager';
+import {fetchAllData, fetchMessagesDB} from './databaseManager';
 import Snackbar from 'react-native-snackbar';
 
 export const saveRestaurantDetails = async (data: any) => {
@@ -10,7 +10,11 @@ export const saveRestaurantDetails = async (data: any) => {
   const {email, name} = user;
 };
 
-export const addNewDish = async (category:string, dishName:string, price:number) => {
+export const addNewDish = async (
+  category: string,
+  dishName: string,
+  price: number,
+) => {
   try {
     const menuData = await fetchMenu();
     if (menuData) {
@@ -27,7 +31,7 @@ export const addNewDish = async (category:string, dishName:string, price:number)
       };
       await saveMenu(updatedMenu);
     } else {
-      const newMenu:Menu = {
+      const newMenu: Menu = {
         [category]: {
           [dishName]: {
             name: dishName,
@@ -44,6 +48,12 @@ export const addNewDish = async (category:string, dishName:string, price:number)
       duration: Snackbar.LENGTH_SHORT,
     });
   }
+};
+
+export const deleteDish = async (category: string, name: string) => {
+  const menu = await fetchMenu();
+  delete menu[category][name];
+  await saveMenu(menu);
 };
 
 // Save profile information
@@ -92,17 +102,14 @@ export const fetchLinkedUsers = async (): Promise<User | null> => {
   return data ? JSON.parse(data) : null;
 };
 
-// Save URL
 export const saveUrl = async (url: string) => {
   await AsyncStorage.setItem('url', url);
 };
 
-// Fetch URL
 export const fetchUrl = async () => {
   return await AsyncStorage.getItem('url');
 };
 
-// Clear all AsyncStorage data
 export const clearStorage = async () => {
   await AsyncStorage.clear();
 };
@@ -114,31 +121,33 @@ export const syncData = async () => {
   await saveMenu(data.menu);
   await saveLinkedUsers(data.linkedUsers);
   await saveProfileInfo(data.info);
+  const msgs = await fetchMessagesDB();
+  await saveMessages(msgs);
 };
 
 export const saveStats = async (
-  totalItems:number,
-  availableItems:number,
-  soldOutItems:number,
+  totalItems: number,
+  availableItems: number,
+  soldOutItems: number,
 ) => {
   const stats = {
     totalItems: totalItems,
     availableItems: availableItems,
     soldOutItems: soldOutItems,
   };
-  await AsyncStorage.setItem( 'stats',JSON.stringify(stats));
+  await AsyncStorage.setItem('stats', JSON.stringify(stats));
 };
 
 export const fetchStats = async () => {
   const res = await AsyncStorage.getItem('stats');
-  if(res){
+  if (res) {
     return JSON.parse(res);
-  }else{
-    return {}
+  } else {
+    return {};
   }
-}
+};
 
-export const addMenu = async (menu:Menu) => {
+export const addMenu = async (menu: Menu) => {
   const existingMenu = await fetchMenu();
   const updatedMenu = {...existingMenu};
   Object.entries(menu).forEach(([category, dishes]) => {
@@ -155,16 +164,16 @@ export const addMenu = async (menu:Menu) => {
   });
 
   await saveMenu(updatedMenu);
-}
+};
 
 export const fetchMessages = async () => {
   const res = await AsyncStorage.getItem('messages');
-  if(res){
+  if (res) {
     return JSON.parse(res);
-  }else{
+  } else {
     return [];
   }
-}
+};
 
 export const saveMessages = async (messages: Message[]) => {
   await AsyncStorage.setItem('messages', JSON.stringify(messages));

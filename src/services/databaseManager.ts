@@ -1,9 +1,12 @@
 import {View, Text} from 'react-native';
 import React from 'react';
-import firestore from '@react-native-firebase/firestore';
+import firestore, {
+  arrayRemove,
+  arrayUnion,
+} from '@react-native-firebase/firestore';
 import Snackbar from 'react-native-snackbar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {fetchUrl} from './storageService';
+import {fetchUrl, fetchUser} from './storageService';
 
 export const addNewDishDB = async (
   category: string,
@@ -94,7 +97,7 @@ export const deleteDishDB = async (category: string, name: string) => {
             },
           });
         });
-    }else{
+    } else {
       Snackbar.show({
         text: name + ' deleted successfully',
         duration: Snackbar.LENGTH_SHORT,
@@ -313,7 +316,7 @@ export const saveProfileInfoDB = async (info: ProfileInformation) => {
           },
         });
       });
-      return true;
+    return true;
   } catch (error: any) {
     Snackbar.show({
       text: error.message,
@@ -411,7 +414,7 @@ export const deleteUsersInUsers = async (arr: string[]) => {
   }
 };
 
-export const addMenuDB = async ( menu:Menu ) => {
+export const addMenuDB = async (menu: Menu) => {
   try {
     const url = await AsyncStorage.getItem('url');
     if (!url) {
@@ -423,7 +426,7 @@ export const addMenuDB = async ( menu:Menu ) => {
       .doc(url as string)
       .set(
         {
-          menu:menu,
+          menu: menu,
         },
         {merge: true},
       )
@@ -442,5 +445,68 @@ export const addMenuDB = async ( menu:Menu ) => {
       text: error.message,
       duration: Snackbar.LENGTH_SHORT,
     });
+  }
+};
+
+export const saveMessagesDB = async (
+  deleteStatus:boolean,
+  oldMsg1: Message,
+  oldMsg2: Message,
+  newMsg1: Message,
+  newMsg2: Message,
+) => {
+  try {
+    const user = await fetchUser();
+    const email = user.email;
+    if (!email) {
+      throw new Error('email not found in Storage');
+    }
+    if(deleteStatus){
+      await firestore()
+        .collection('users')
+        .doc(email)
+        .set(
+          {
+            messages: arrayRemove(oldMsg1, oldMsg2),
+          },
+          {merge: true},
+        );
+    }
+
+    await firestore()
+      .collection('users')
+      .doc(email)
+      .set(
+        {
+          messages: arrayUnion(newMsg1, newMsg2),
+        },
+        {merge: true},
+      );
+
+    return true;
+  } catch (error) {
+    Snackbar.show({
+      text: 'some error has occurred while saving messages.',
+      duration: Snackbar.LENGTH_SHORT,
+    });
+  }
+};
+
+export const fetchMessagesDB = async () => {
+  try {
+    const user = await fetchUser();
+    const email = user.email;
+    if (!email) {
+      throw new Error('email not found in Storage');
+    }
+    const res = await firestore().collection('users').doc(email).get();
+    const data: any = res.data();
+    return data.messages;
+  } catch (error) {
+    Snackbar.show({
+      text: 'some error has occurred while fetching messages.',
+      duration: Snackbar.LENGTH_SHORT,
+    });
+    return [];
   }
 };

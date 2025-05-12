@@ -8,6 +8,10 @@ export const checkInternet = async () => {
     Snackbar.show({
       text: 'It seems that you are not connected to the Internet',
       duration: Snackbar.LENGTH_SHORT,
+      action: {
+        text: 'OK',
+        textColor: '#0F766E',
+      },
     });
     return false;
   }
