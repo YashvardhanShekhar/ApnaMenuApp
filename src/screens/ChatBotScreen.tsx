@@ -9,6 +9,7 @@ import {
   Platform,
   StyleSheet,
   Keyboard,
+  Animated,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -19,9 +20,10 @@ import {ActivityIndicator} from 'react-native-paper';
 import {Haptic, HapticHeavy, HapticMedium} from '../components/haptics';
 import {chatBot, setupModel} from '../components/genai';
 import {fetchMessages, saveMessages} from '../services/storageService';
-import { saveMessagesDB } from '../services/databaseManager';
-import { checkInternet } from '../components/checkInternet';
-import Mic from '../components/chatBot/audioInput';
+import {saveMessagesDB} from '../services/databaseManager';
+import {checkInternet} from '../components/checkInternet';
+import AudioRecorderPlayer from 'react-native-audio-recorder-player';
+import RNFS from 'react-native-fs';
 
 const ChatScreen = () => {
   const [messages, setMessages] = useState<Message[]>([
@@ -36,6 +38,13 @@ const ChatScreen = () => {
   const flatListRef = useRef<FlatList>(null);
   const navigation = useNavigation();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const recorder = useRef(new AudioRecorderPlayer()).current;
+  const [recordingPath, setRecordingPath] = useState('');
+  const [base64Audio, setBase64Audio] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [waveformValues, setWaveformValues] = useState<number[]>([]);
+  const waveformAnimationRef = useRef(null);
 
   useEffect(() => {
     setTimeout(() => {
@@ -43,7 +52,7 @@ const ChatScreen = () => {
         flatListRef.current.scrollToEnd({animated: true});
       }
     }, 100);
-  }, [messages, keyboardVisible, navigation]);
+  }, [messages, keyboardVisible, navigation, isRecording]);
 
   useEffect(() => {
     const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
@@ -71,18 +80,139 @@ const ChatScreen = () => {
     fetch();
   }, [navigation]);
 
+  // Create initial random values for waveform
+  useEffect(() => {
+    const initialValues = Array(30)
+      .fill(0)
+      .map(() => Math.random() * 30 + 10);
+    setWaveformValues(initialValues);
+  }, []);
+
+  // Recording timer
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isRecording) {
+      interval = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+    } else {
+      setRecordingTime(0);
+    }
+    return () => clearInterval(interval);
+  }, [isRecording]);
+
+  // Animate waveform when recording
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isRecording) {
+      interval = setInterval(() => {
+        const newValues: any = Array(30)
+          .fill(0)
+          .map(() => Math.random() * 30 + 10);
+        setWaveformValues(newValues);
+      }, 200);
+    }
+    return () => clearInterval(interval);
+  }, [isRecording]);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+      .toString()
+      .padStart(2, '0');
+    const secs = (seconds % 60).toString().padStart(2, '0');
+    return `${mins}:${secs}`;
+  };
+
+  const startRecording = async () => {
+    try {
+      const result = await recorder.startRecorder();
+      setRecordingPath(result);
+      setIsRecording(true);
+      Haptic();
+      console.log('Recording started:', result);
+    } catch (error) {
+      console.error('Error starting recording:', error);
+    }
+  };
+
+  const stopRecording = async () => {
+    try {
+      const result = await recorder.stopRecorder();
+      console.log('Recording stopped:', result);
+      setIsRecording(false);
+      HapticMedium();
+
+      const base64 = await RNFS.readFile(result, 'base64');
+      setBase64Audio(base64);
+    } catch (error) {
+      console.error('Error stopping recording:', error);
+      setIsRecording(false);
+    }
+  };
+
+  const sendAudio = async () => {
+    if (!base64Audio) return;
+    await stopRecording();
+    setIsTyping(true);
+    const ci = await checkInternet();
+    if (!ci) {
+      setIsTyping(false);
+      return;
+    }
+
+    const oldMessages: Message[] = messages;
+    Haptic();
+
+    const newUserMessage: Message = {
+      id: String(Date.now()),
+      content: '🎤 Audio message',
+      role: 'user',
+    };
+
+    setMessages([...messages, newUserMessage]);
+    setBase64Audio('');
+
+    const botMsg = await chatBot('🎤 Audio message', false, base64Audio);
+    if (!botMsg) {
+      setIsTyping(false);
+      return;
+    }
+
+    const aiResponse: Message = {
+      id: String(Date.now() + 1),
+      content: botMsg,
+      role: 'model',
+    };
+
+    const prevMessage: Message[] = [...oldMessages, newUserMessage, aiResponse];
+    const tempPrevMessage = prevMessage.slice(-100);
+    setMessages(tempPrevMessage);
+
+    setIsTyping(false);
+    HapticHeavy();
+    const deleteStatus = messages.length > 100;
+    await saveMessagesDB(
+      deleteStatus,
+      prevMessage[0],
+      prevMessage[1],
+      newUserMessage,
+      aiResponse,
+    );
+    await saveMessages(tempPrevMessage);
+  };
+
   const handleSend = async () => {
     if (inputText.trim() === '') return;
-    
+
     const ci = await checkInternet();
     if (!ci) {
       return;
     }
 
-    const oldMessages = messages;
+    const oldMessages: Message[] = messages;
     Haptic();
 
-    const newUserMessage:Message = {
+    const newUserMessage: Message = {
       id: String(Date.now()),
       content: inputText,
       role: 'user',
@@ -94,24 +224,24 @@ const ChatScreen = () => {
     setIsTyping(true);
 
     const botMsg = await chatBot(newUserMessage.content, true, '');
-    if(!botMsg) {
+    if (!botMsg) {
       setIsTyping(false);
       return;
     }
 
-    const aiResponse:Message = {
+    const aiResponse: Message = {
       id: String(Date.now()),
       content: botMsg,
       role: 'model',
     };
-    
+
     const prevMessage = [...oldMessages, newUserMessage, aiResponse];
-    const tempPrevMessage = prevMessage.slice(-100)
+    const tempPrevMessage = prevMessage.slice(-100);
     setMessages(tempPrevMessage);
 
     setIsTyping(false);
     HapticHeavy();
-    const deleteStatus = messages.length>100;
+    const deleteStatus = messages.length > 100;
     await saveMessagesDB(
       deleteStatus,
       prevMessage[0],
@@ -120,10 +250,10 @@ const ChatScreen = () => {
       aiResponse,
     );
     await saveMessages(tempPrevMessage);
-    console.log('chats updated in database')
+    console.log('chats updated in database');
   };
 
-  const renderItem = ({item}:{item:Message}) => {
+  const renderItem = ({item}: {item: Message}) => {
     const isUser = item.role === 'user';
 
     return (
@@ -172,6 +302,25 @@ const ChatScreen = () => {
     );
   };
 
+  const renderWaveform = () => {
+    return (
+      <View style={styles.waveformContainer}>
+        {waveformValues.map((value, index) => (
+          <View
+            key={index}
+            style={[
+              styles.waveformBar,
+              {
+                height: value,
+                backgroundColor: index < 10 ? '#2563EB' : '#60A5FA',
+              },
+            ]}
+          />
+        ))}
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -212,7 +361,6 @@ const ChatScreen = () => {
         keyExtractor={item => item.id}
         contentContainerStyle={styles.messagesContent}
         style={styles.messagesContainer}
-
         ListFooterComponent={renderTypingIndicator}
       />
 
@@ -220,36 +368,65 @@ const ChatScreen = () => {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 10}>
-
         <View style={styles.inputContainer}>
-          <View style={styles.inputWrapper}>
-            <Mic/>
+          {isRecording ? (
+            <View style={styles.recordingContainer}>
+              <View style={styles.recordingHeader}>
+                <View style={styles.recordingIndicatorContainer}>
+                  <View style={styles.recordingIndicator} />
+                  <Text style={styles.recordingText}>
+                    Recording {formatTime(recordingTime)}
+                  </Text>
+                </View>
+              </View>
 
-            <TextInput
-              style={[styles.input, {maxHeight: 100}]}
-              value={inputText}
-              onChangeText={setInputText}
-              placeholder="Type a message..."
-              placeholderTextColor="#94A3B8"
-              multiline
-            />
+              <View style={styles.recordingControls}>
+                <TouchableOpacity
+                  style={styles.stopButton}
+                  onPress={stopRecording}>
+                  <Ionicons name="close" size={20} color="#0F172A" />
+                </TouchableOpacity>
+                {renderWaveform()}
 
-            <TouchableOpacity
-              style={[
-                styles.sendButton,
-                !inputText.trim() || isTyping
-                  ? styles.sendButtonDisabled
-                  : null,
-              ]}
-              onPress={handleSend}
-              disabled={!inputText.trim() || isTyping}>
-              <Ionicons
-                name="send"
-                size={20}
-                color={inputText.trim() || isTyping ? '#FFFFFF' : '#CBD5E1'}
+                <TouchableOpacity style={styles.sendButton} onPress={sendAudio}>
+                  <Ionicons name="send" size={20} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.inputWrapper}>
+              <TouchableOpacity
+                style={styles.micButton}
+                onPress={startRecording}>
+                <Ionicons name="mic" size={20} color="#0F766E" />
+              </TouchableOpacity>
+
+              <TextInput
+                style={[styles.input, {maxHeight: 100}]}
+                value={inputText}
+                onChangeText={setInputText}
+                placeholder="Type a message..."
+                placeholderTextColor="#94A3B8"
+                multiline
               />
-            </TouchableOpacity>
-          </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.sendButton,
+                  !inputText.trim() || isTyping
+                    ? styles.sendButtonDisabled
+                    : null,
+                ]}
+                onPress={handleSend}
+                disabled={!inputText.trim() || isTyping}>
+                <Ionicons
+                  name="send"
+                  size={20}
+                  color={inputText.trim() && !isTyping ? '#FFFFFF' : '#CBD5E1'}
+                />
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -362,6 +539,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#0F172A',
   },
+  micButton: {
+    marginRight: 12,
+    backgroundColor: '#F1F5F9',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
   sendButton: {
     marginLeft: 12,
     backgroundColor: '#0F766E',
@@ -393,6 +581,69 @@ const styles = StyleSheet.create({
   typingText: {
     color: '#64748B',
     fontSize: 14,
+  },
+  // Recording styles
+  recordingContainer: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 12,
+  },
+  recordingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  recordingIndicatorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  recordingIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#EF4444',
+    marginRight: 8,
+    opacity: 1,
+    // Pulse animation
+    shadowColor: '#EF4444',
+    shadowOffset: {width: 0, height: 0},
+    shadowOpacity: 0.5,
+    shadowRadius: 5,
+  },
+  recordingText: {
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  waveformContainer: {
+    width: '62%',
+    height: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  waveformBar: {
+    width: 4,
+    borderRadius: 2,
+    backgroundColor: '#2563EB',
+    marginHorizontal: 2,
+  },
+  recordingControls: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  stopButton: {
+    backgroundColor: '#F1F5F9',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
 });
 
