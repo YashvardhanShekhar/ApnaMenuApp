@@ -385,7 +385,7 @@ const LinkedUsersScreen = () => {
                                   styles.disabledButton,
                               ]}
                               disabled={!isValid || isSubmitting}
-                              onPress={()=>(handleSubmit)}>
+                              onPress={handleSubmit}>
                               <Icon
                                 name="save"
                                 size={20}

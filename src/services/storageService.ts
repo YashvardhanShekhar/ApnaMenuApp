@@ -122,7 +122,9 @@ export const syncData = async () => {
   await saveLinkedUsers(data.linkedUsers);
   await saveProfileInfo(data.info);
   const msgs = await fetchMessagesDB();
-  await saveMessages(msgs);
+  if(msgs){
+    await saveMessages(msgs);
+  }
 };
 
 export const saveStats = async (

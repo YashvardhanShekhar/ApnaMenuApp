@@ -51,7 +51,7 @@ export const handleSignIn = async () => {
     const {idToken} = await GoogleSignin.getTokens();
     const credential = auth.GoogleAuthProvider.credential(idToken);
     await auth().signInWithCredential(credential);
-
+    console.log(response);
     await saveUser(response.data.user);
     const email = response.data.user.email;
     const name = response.data.user.name;
@@ -79,7 +79,7 @@ export const handleSignIn = async () => {
       Alert.alert('Google Play Services not available');
     } else {
       console.error(error);
-      Alert.alert(error.message);
+      Alert.alert('some error has occurred');
     }
   }
 };
