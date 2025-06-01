@@ -25,13 +25,12 @@ import {
   saveStats,
   syncData,
 } from '../services/storageService';
-import Snackbar from 'react-native-snackbar';
 import {handleLogOut} from '../services/authentication';
 import * as NavigationService from '../services/navigationService';
 import {checkInternet} from '../components/checkInternet';
 import {launchImageLibrary} from 'react-native-image-picker';
-import {uploadPhoto} from './ChatBotScreen';
 import {parseMenu} from '../components/genai';
+import {styles} from '../styles/profileScreenStyle';
 
 const ProfileScreen = () => {
   const isFocused = useIsFocused();
@@ -149,7 +148,7 @@ const ProfileScreen = () => {
         mediaType: 'photo',
         includeBase64: true,
       },
-      async (response:any) => {
+      async (response: any) => {
         if (response.didCancel) {
           console.log('User cancelled image picker');
         } else if (response.errorCode) {
@@ -157,10 +156,12 @@ const ProfileScreen = () => {
         } else {
           setImgState(true);
           const base64Image = response.assets[0].base64;
-          const uri = response.assets[0].uri;
-          console.log('photo sent');
+          const ci = await checkInternet();
+          if (!ci) {
+            setImgState(false);
+            return;
+          }
           const menuData = await parseMenu(base64Image);
-          console.log('menuData', menuData);
           // const menuData = {
           //   menu: {
           //     Coffee: {
@@ -184,7 +185,7 @@ const ProfileScreen = () => {
           //     },
           //   },
           // };
-          console.log('parse complete');
+          // console.log('parse complete');
           NavigationService.navigate('MenuEditScreen', {menuData});
           setImgState(false);
         }
@@ -401,253 +402,5 @@ const ContactItem = ({
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-    paddingBottom: 50,
-  },
-  profileSection: {
-    alignItems: 'center',
-    paddingVertical: 25,
-    backgroundColor: '#FFFFFF',
-  },
-  profileImageContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#64748B',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 15,
-    overflow: 'hidden',
-  },
-  profileImage: {
-    width: 100,
-    height: 100,
-  },
-  restaurantName: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#0F172A',
-    marginBottom: 5,
-  },
-  restaurantType: {
-    fontSize: 16,
-    color: '#64748B',
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    marginHorizontal: 20,
-    marginTop: 20,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  statItem: {
-    flex: 1,
-    paddingVertical: 15,
-    alignItems: 'center',
-  },
-  statBorder: {
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  statNumber: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#0F172A',
-    marginBottom: 5,
-  },
-  statLabel: {
-    fontSize: 14,
-    color: '#64748B',
-  },
-  sectionContainer: {
-    marginTop: 24,
-    marginHorizontal: 20,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  sectionTitleContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 15,
-  },
-  contactContainer: {
-    marginTop: 5,
-  },
-  contactItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 20,
-  },
-  contactIconContainer: {
-    width: 40,
-    height: 40,
-    backgroundColor: '#E2E8F0',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 15,
-  },
-  contactContent: {
-    flex: 1,
-  },
-  contactTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#334155',
-    marginBottom: 4,
-  },
-  contactValue: {
-    fontSize: 15,
-    color: '#0F172A',
-    lineHeight: 22,
-  },
-  contactDescription: {
-    lineHeight: 20,
-  },
-  contactPlaceholder: {
-    color: '#94A3B8',
-    fontStyle: 'italic',
-  },
-  editButton: {
-    backgroundColor: '#0F766E',
-    borderRadius: 12,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
-  },
-  buttonIcon: {
-    marginRight: 8,
-  },
-  editButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  statusCardsContainer: {
-    marginHorizontal: 20,
-    marginTop: 24,
-  },
-  statusCard: {
-    paddingRight: 25,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  statusIndicator: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 15,
-  },
-  statusPercentage: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  statusContent: {
-    flex: 1,
-  },
-  statusTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#0F172A',
-    marginBottom: 3,
-  },
-  statusDescription: {
-    fontSize: 13,
-    color: '#64748B',
-  },
-  manageUsersContainer: {
-    marginHorizontal: 20,
-    marginTop: 24,
-  },
-  manageUsersButton: {
-    backgroundColor: '#0F766E',
-    borderRadius: 12,
-    paddingVertical: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  manageUsersButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  // New styles for logout button
-  actionButtonsContainer: {
-    marginHorizontal: 20,
-    marginTop: 24,
-  },
-  logoutButton: {
-    backgroundColor: '#64748B',
-    borderRadius: 12,
-    paddingVertical: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    opacity: 0.9,
-  },
-  logoutButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  // New styles for delete account button
-  deleteAccountContainer: {
-    marginHorizontal: 20,
-    marginTop: 16,
-    marginBottom: 40,
-  },
-  deleteAccountButton: {
-    backgroundColor: '#EF4444',
-    borderRadius: 12,
-    paddingVertical: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  deleteAccountButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-});
 
 export default ProfileScreen;

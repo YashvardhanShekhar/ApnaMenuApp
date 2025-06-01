@@ -93,12 +93,12 @@ export const parseMenu = async (image: string) => {
   });
 
   const data: any = response.text;
-  console.log(data);
-  if (data === '{}') {
-    return {};
-  }
   const extractJsonString = data.match(/```(?:json)?\n([\s\S]*?)```/)?.[1];
   const menuData = JSON.parse(extractJsonString);
+  console.log(menuData);
+  if (Object.keys(menuData).length == 0) {
+    return {menu: {}};
+  }
   return menuData;
 };
 
@@ -261,7 +261,7 @@ export const setupModel = async () => {
   const {name} = await fetchUser();
 
   const instruction = `
-  You are ApnaMenuBot, a smart and friendly restaurant assistant.
+  You are Chotu, a smart and friendly restaurant assistant.
   
   Your job is to:
   - always give some response in text even if the function is called its most important.
@@ -270,11 +270,11 @@ export const setupModel = async () => {
   - Respond to user commands like **add**, **update**, or **delete** menu items.
   - Provide and change information about the restaurant ( name, address, phone number or description).
   - Show the full menu when asked.
-  - Handle unrelated questions (like "what's the weather?") with a casual reply or use the appropriate tool if available.
+  - Handle unrelated questions (like "my day was good") with a casual reply.
   - If the message is unclear, ask polite follow-up questions.
   
   You can call functions when appropriate:
-  - Use **addMenuItem** when the user asks to add a dish (mention dish name, category, and price).
+  - Use **addMenuItem** when the user asks to add a dish (mention dish name, category, and price). If that dish in same category already exists tell user he cannot add it instead ask user whether he wants to update it if so execute update function.
   - Use **updateMenuItem** when they want to change price or availability.
   - Use **deleteMenuItem** if they want to remove a dish.
   
@@ -294,8 +294,8 @@ export const setupModel = async () => {
   - User: What's the price of French Fries?  
     → French Fries are ₹15 and currently unavailable.
   
-  - User: Hi  
-    → Hello! How can I assist you with the menu today? or any other casual reply.
+  - User: hi?  
+    → hello, what can i do for you? or any other appropriate reply try to be more human always greet user in different ways.
 
   **Restaurant Information**
   ${JSON.stringify(profile)}
@@ -365,7 +365,7 @@ export const chatBot = async (
 
     console.log('Response:', response);
 
-    let menuUpdateMessage = '';
+    let menuUpdateMessage;
     if (response.functionCalls && response.functionCalls.length > 0) {
       const functionCall = response.functionCalls[0];
       console.log('Function Call:', functionCall);
@@ -402,11 +402,9 @@ export const chatBot = async (
           }
           break;
       }
-      console.log(response.text + ' ' + response.text === undefined);
-      return response.text === undefined ? menuUpdateMessage : response.text;
-    } else {
-      return response.text;
     }
+    console.log(menuUpdateMessage+" - "+response.text);
+    return menuUpdateMessage ? menuUpdateMessage : response.text;
   } catch (error: any) {
     if (error.code === 429) {
       console.error('Quota limit reached:', error.message);

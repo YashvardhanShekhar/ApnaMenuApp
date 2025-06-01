@@ -69,3 +69,8 @@ interface Message {
   role: 'user' | 'model';
 }
 
+interface TempLinkedUser {
+  name: string;
+  isOriginal: boolean;
+  email: string;
+}

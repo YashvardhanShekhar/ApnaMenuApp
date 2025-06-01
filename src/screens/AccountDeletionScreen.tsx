@@ -25,8 +25,7 @@ import {fetchUrl, fetchUser} from '../services/storageService';
 import {handleLogOut} from '../services/authentication';
 import {checkInternet} from '../components/checkInternet';
 
-// const navigation = useNavigation();
-// Validation schema
+
 const deleteAccountSchema = Yup.object().shape({
   email: Yup.string()
     .email('Invalid email format')
@@ -114,8 +113,8 @@ const DeleteAccountScreen = () => {
       setDeleteInProgress(false);
       return;
     }
-    // deleteAccountPermanently(values.email, values.restaurantUrl);
-    Alert.alert(`${values.email} ${values.restaurantUrl} deleted`);
+    await deleteAccountPermanently(values.email, values.restaurantUrl);
+    // Alert.alert(`${values.email} restaurant ${values.restaurantUrl} has been deleted`);
     setDeleteInProgress(false);
     await handleLogOut();
   };
@@ -155,7 +154,8 @@ const DeleteAccountScreen = () => {
             validationSchema={deleteAccountSchema}
             onSubmit={handleDeleteAccount}
             validateOnChange={true}
-            validateOnBlur={true}>
+            validateOnBlur={true}
+            >
             {({
               values,
               errors,
@@ -177,7 +177,7 @@ const DeleteAccountScreen = () => {
                   <TextInput
                     style={[
                       styles.textInput,
-                      touched.email && errors.email && styles.inputError,
+                      errors.email && styles.inputError,
                     ]}
                     value={values.email}
                     onChangeText={handleChange('email')}
@@ -188,7 +188,7 @@ const DeleteAccountScreen = () => {
                     autoCapitalize="none"
                     editable={!deleteInProgress}
                   />
-                  {touched.email && errors.email && (
+                  {errors.email && (
                     <Text style={styles.errorText}>{errors.email}</Text>
                   )}
                 </View>
@@ -198,7 +198,6 @@ const DeleteAccountScreen = () => {
                   <TextInput
                     style={[
                       styles.textInput,
-                      touched.restaurantUrl &&
                         errors.restaurantUrl &&
                         styles.inputError,
                     ]}
@@ -210,7 +209,7 @@ const DeleteAccountScreen = () => {
                     autoCapitalize="none"
                     editable={!deleteInProgress}
                   />
-                  {touched.restaurantUrl && errors.restaurantUrl && (
+                  {errors.restaurantUrl && (
                     <Text style={styles.errorText}>{errors.restaurantUrl}</Text>
                   )}
                 </View>
@@ -229,7 +228,7 @@ const DeleteAccountScreen = () => {
                       (!isValid || isSubmitting || deleteInProgress) &&
                         styles.disabledButton,
                     ]}
-                    onPress={()=>handleSubmit}
+                    onPress={handleSubmit}
                     disabled={!isValid || isSubmitting || deleteInProgress}>
                     {deleteInProgress ? (
                       <ActivityIndicator size="small" color="#FFFFFF" />
