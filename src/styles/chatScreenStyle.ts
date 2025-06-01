@@ -218,17 +218,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  warning:{
+  warning: {
     // position:'absolute',
-    width:'100%',
-    paddingHorizontal:'10%',
-    paddingVertical:'1%',
-    backgroundColor:'gray',
-    display:'flex',
-    textAlign:'center',
-    justifyContent:'center',
-    alignItems:'center'
-  }
+    width: '100%',
+    paddingHorizontal: '10%',
+    paddingVertical: '1%',
+    backgroundColor: '#F1F5F9',
+    display: 'flex',
+    textAlign: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });
 
 export default styles;

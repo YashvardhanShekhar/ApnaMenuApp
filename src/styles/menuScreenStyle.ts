@@ -12,6 +12,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
+
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   headerTitle: {
     fontSize: 24,
@@ -275,6 +279,83 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     marginLeft: 8,
+  },
+
+  qrIconButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#F0FDF4',
+    marginLeft: 16,
+  },
+
+  // QR Modal Styles
+  qrModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  qrModalContainer: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    margin: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+
+  qrCloseButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    padding: 8,
+    zIndex: 1,
+  },
+
+  qrModalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#0F172A',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+
+  qrModalSubtitle: {
+    fontSize: 16,
+    color: '#64748B',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+
+  qrCodeContainer: {
+    padding: 20,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    marginBottom: 20,
+  },
+
+  qrUrlText: {
+    fontSize: 14,
+    // color: '#64748B',
+    color: '#0F766E',
+    textAlign: 'center',
+    fontFamily: 'monospace',
   },
 });
 

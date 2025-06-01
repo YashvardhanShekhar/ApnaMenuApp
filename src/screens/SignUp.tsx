@@ -42,7 +42,11 @@ const RestaurantRegistrationSchema = Yup.object().shape({
     .min(3, 'Restaurant URL must be at least 3 characters')
     .required('Restaurant URL is required')
     .matches(/^\S*$/, 'URL cannot contain spaces')
-    .matches(/^[^/]*$/, "URL cannot contain forward slashes ei : ' / '")
+    .matches(
+      /^[a-zA-Z0-9-]*$/,
+      'Only letters, numbers, and hyphens (-) are allowed',
+    )
+
     .test('unique-url', 'URL is already taken', async url => {
       if (!url) return true;
       const isExists = await restaurantUrlExists(url);
@@ -81,12 +85,7 @@ const RestaurantRegistrationScreen = ({route}:{route:any}) => {
       description: '',
     };
 
-    await addNewRestaurantDB(
-      email,
-      name,
-      values.restaurantUrl.toLowerCase(),
-      info,
-    );
+    await addNewRestaurantDB(email, name, values.restaurantUrl.toLowerCase(), info);
 
     const linkedUser: LinkedUsers = {
       [email]: {
@@ -97,7 +96,7 @@ const RestaurantRegistrationScreen = ({route}:{route:any}) => {
 
     await saveProfileInfo(info);
     await saveLinkedUsers(linkedUser);
-    await saveUrl(values.restaurantUrl);
+    await saveUrl(values.restaurantUrl.toLowerCase());
 
     NavigationService.reset('Home');
 
@@ -186,7 +185,7 @@ const RestaurantRegistrationScreen = ({route}:{route:any}) => {
                       theme={{colors: {primary: '#0F766E', text: '#0F172A'}}}
                       left={<TextInput.Icon icon="link" color="#64748B" />}
                       textColor="#0F172A"
-                      placeholder="yourrestaurant (no spaces)"
+                      placeholder="your-restaurant (no spaces)"
                     />
                     {touched.restaurantUrl && errors.restaurantUrl && (
                       <HelperText
@@ -199,7 +198,7 @@ const RestaurantRegistrationScreen = ({route}:{route:any}) => {
                     <Text style={styles.urlPreview}>
                       URL will look like : apnamenu.vercel.app/
                       <Text style={styles.urlHighlight}>
-                        {values.restaurantUrl.toLowerCase() || 'yourrestaurant'}
+                        {values.restaurantUrl.toLowerCase() || 'your-restaurant'}
                       </Text>
                     </Text>
                   </View>

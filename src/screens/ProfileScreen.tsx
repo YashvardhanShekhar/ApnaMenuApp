@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, {useState, useEffect, useCallback} from 'react';
+import React, {useState, useEffect, useCallback, useRef} from 'react';
 import {
   StyleSheet,
   View,
@@ -216,14 +216,8 @@ const ProfileScreen = () => {
           </View>
           <Text style={styles.restaurantName}>{profileData?.name}</Text>
           <Text style={styles.restaurantType}>
-            <TouchableOpacity
-              onPress={() =>
-                Linking.openURL(`https://apnamenu.vercel.app/${url}`)
-              }>
-              <Text style={{color: '#0F766E', textDecorationLine: 'underline'}}>
-                Visit Website
-              </Text>
-            </TouchableOpacity>
+            {url}
+            
           </Text>
         </View>
 

@@ -136,14 +136,14 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   googleButton: {
-    backgroundColor: '#4285F4',
+    backgroundColor: '#0F766E',
     paddingVertical: 14,
     borderRadius: 12,
     width: '100%',
     alignItems: 'center',
   },
   googleButtonDisabled: {
-    backgroundColor: '#7baaf7',
+    backgroundColor: '#94A3B8',
   },
   googleButtonText: {
     color: '#fff',

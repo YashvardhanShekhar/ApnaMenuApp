@@ -211,6 +211,7 @@ export const addNewRestaurantDB = async (
   info: ProfileInformation,
 ) => {
   try {
+    console.log(restaurantUrl)
     const isExists = await restaurantUrlExists(restaurantUrl);
     if (isExists) {
       throw new Error('URL already exists');

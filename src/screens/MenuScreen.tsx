@@ -8,6 +8,9 @@ import {
   RefreshControl,
   TextInput,
   StatusBar,
+  Modal,
+  Dimensions,
+  Linking,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import styles from '../styles/menuScreenStyle';
@@ -15,15 +18,19 @@ import * as Animatable from 'react-native-animatable';
 import {useIsFocused} from '@react-navigation/native';
 import {
   fetchMenu,
+  fetchUrl,
   saveMenu,
   saveStats,
   syncData,
 } from '../services/storageService';
 import * as NavigationService from '../services/navigationService';
 import {checkInternet} from '../components/checkInternet';
-import { deleteDishDB, setAvailability} from '../services/databaseManager';
+import {deleteDishDB, setAvailability} from '../services/databaseManager';
 import {Haptic} from '../components/haptics';
-
+import {Portal} from 'react-native-paper';
+import QRCode from 'react-native-qrcode-svg';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import Clipboard from '@react-native-clipboard/clipboard';
 
 interface Menu {
   [key: string]: {
@@ -42,6 +49,10 @@ const MenuItemsScreen = () => {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [availabilityFilter, setAvailabilityFilter] = useState('all'); // 'all', 'available', 'soldout'
 
+  // QR Code modal state
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [url, setUrl] = useState('your-restaurant-url'); // Replace with actual URL
+
   // States for expandable categories
   const [expandedCategories, setExpandedCategories] = useState<
     Record<string, boolean>
@@ -50,6 +61,10 @@ const MenuItemsScreen = () => {
 
   // State for long press detection
   const [longPressedItem, setLongPressedItem] = useState<string | null>(null);
+
+  // Get screen dimensions for QR code modal
+  const screenWidth = Dimensions.get('window').width;
+  const qrSize = screenWidth * 0.7;
 
   // Handle refresh
   const onRefresh = useCallback(async () => {
@@ -67,6 +82,8 @@ const MenuItemsScreen = () => {
   const loadMenuItems = async () => {
     try {
       setRefreshing(true);
+      const url = fetchUrl();
+      setUrl(url);
       const menu: Menu = await fetchMenu();
       if (menu) {
         setMenuItems(menu);
@@ -92,7 +109,7 @@ const MenuItemsScreen = () => {
   }, [isFocused]);
 
   const getFilteredItems = () => {
-    let filteredMenu:Menu = {...menuItems};
+    let filteredMenu: Menu = {...menuItems};
 
     // Filter by search query
     if (searchQuery) {
@@ -174,7 +191,7 @@ const MenuItemsScreen = () => {
     await saveStats(totalItems, availableItems, soldOutItems);
   };
 
-  const handleAddDish = (category: string|null) => {
+  const handleAddDish = (category: string | null) => {
     NavigationService.navigate('AddDish', {
       category,
     });
@@ -236,7 +253,14 @@ const MenuItemsScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar backgroundColor="#FFFFFF" barStyle="dark-content" />
+      {showQRModal ? (
+        <StatusBar
+          backgroundColor="rgba(0, 0, 0, 0.8)"
+          barStyle="light-content"
+        />
+      ) : (
+        <StatusBar backgroundColor="#FFFFFF" barStyle="dark-content" />
+      )}
 
       <ScrollView
         refreshControl={
@@ -248,12 +272,25 @@ const MenuItemsScreen = () => {
             tintColor="#0F766E" // spinner color (iOS)
           />
         }>
-        {/* Profile Info */}
+        {/* Profile Info with QR Icon */}
         <View style={styles.headerSection}>
-          <Text style={styles.headerTitle}>Menu Items</Text>
-          <Text style={styles.headerSubtitle}>
-            Manage your restaurant menu items
-          </Text>
+          <View style={{flex: 1}}>
+            <Text style={styles.headerTitle}>Menu Items</Text>
+            <Text style={styles.headerSubtitle}>
+              Manage your restaurant menu items
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.qrIconButton}
+            onPress={() => {
+              setShowQRModal(true);
+            }}>
+            <MaterialCommunityIcons
+              name="qrcode-scan"
+              size={24}
+              color="#0F766E"
+            />
+          </TouchableOpacity>
         </View>
 
         {/* Search Bar */}
@@ -485,6 +522,48 @@ const MenuItemsScreen = () => {
           <Text style={styles.addButtonText}>Add New Menu Item</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* QR Code Modal using Portal */}
+      <Portal>
+        <Modal
+          visible={showQRModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowQRModal(false)}>
+          <View style={styles.qrModalOverlay}>
+            <View style={styles.qrModalContainer}>
+              <TouchableOpacity
+                style={styles.qrCloseButton}
+                onPress={() => setShowQRModal(false)}>
+                <Icon name="x" size={24} color="#666" />
+              </TouchableOpacity>
+
+              <Text style={styles.qrModalTitle}>Menu QR Code</Text>
+              <Text style={styles.qrModalSubtitle}>
+                Scan to view the digital menu
+              </Text>
+
+              <View style={styles.qrCodeContainer}>
+                <QRCode
+                  value={`https://apnamenu.vercel.app/${url}`}
+                  size={qrSize}
+                  color="black"
+                  backgroundColor="white"
+                />
+              </View>
+              <TouchableOpacity
+                onPress={async () =>
+                  Linking.openURL(`https://apnamenu.vercel.app/${url}`)
+                }
+                onLongPress={async () =>
+                  Clipboard.setString(`https://apnamenu.vercel.app/${url}`)
+                }>
+                <Text style={styles.qrUrlText}>apnamenu.vercel.app/{url}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      </Portal>
     </SafeAreaView>
   );
 };
