@@ -1,116 +1,88 @@
-# ApnaMenu
+# ApnaMenu 🍽️
 
-ApnaMenu is a user-friendly mobile application designed to streamline food ordering and menu browsing experiences. Built using React Native, this app offers a seamless interface for users to explore restaurant menus, customize orders, and manage their cart efficiently.
+![ApnaMenu Logo](./android/app/src/main/res/mipmap-hdpi/ic_launcher_adaptive_fore.png)
+
+ApnaMenu is a React Native mobile app that simplifies menu management for restaurants. With **voice commands**, **photo uploads**, and now a **smart chatbot**, restaurant owners can update menus in real-time, while customers enjoy a seamless ordering experience. Powered by Firebase and Google Gemini API, ApnaMenu is designed for small businesses looking to modernize their operations.
 
 ## 🚀 Features
-
-* **Intuitive Menu Browsing**: Navigate through categorized menus with ease.
-* **Real-time Menu Management**: Add or remove items from your Menu with instant updates.
-* **User Authentication**: Secure login and registration system.
-* **Responsive Design**: Optimized for various screen sizes and orientations.
+- **Smart Chatbot (Chotu)**: Manage menu items via natural language (e.g., “Delete snacks under ₹90”).
+- **Voice Commands**: Update menus by speaking (e.g., “Add Chole Bhature for ₹100”).
+- **Photo Menu Upload**: Extract menu items from photos using OCR.
+- **Intuitive Menu Browsing**: Navigate categorized menus effortlessly.
+- **Real-Time Menu Management**: Add, edit, or mark items unavailable instantly.
+- **User Authentication**: Secure Google Sign-In with Firebase.
+- **Responsive Design**: Optimized for all screen sizes.
 
 ## 🛠️ Technologies Used
-
-* **React Native**: For building cross-platform mobile applications.
-* **Redux**: State management across the app.
-* **Firebase**: Backend services including authentication and real-time database.
-* **React Navigation**: Handling in-app navigation.
-* **Axios**: For making API requests.
-
+- **React Native**: Cross-platform mobile app development.
+- **Redux**: State management.
+- **Firebase**: Authentication and real-time database.
+- **Google Gemini API**: Voice-to-text, image processing, and chatbot functionality.
+- **React Navigation**: In-app navigation.
 
 ## 🧑‍💻 Getting Started
 
-Follow these instructions to set up the project locally.
-
 ### Prerequisites
-
-* Node.js and npm installed
-* React Native CLI
-* Android Studio or Xcode for emulator/simulator
+- Node.js and npm
+- React Native CLI
+- Android Studio or Xcode
+- Firebase and Google Gemini API accounts
 
 ### Installation
-
-1. **Clone the repository:**
-
+1. Clone the repository:
    ```bash
    git clone https://github.com/YashvardhanShekhar/ApnaMenuApp.git
    cd ApnaMenuApp
    ```
-
-2. **Install dependencies:**
-
+2. Install dependencies:
    ```bash
    npm install
    ```
-
-3. **Start the development server:**
-
+3. Configure Firebase and Gemini API:
+   - Add Firebase config to `src/utils/firebaseConfig.js`.
+   - Add Gemini API key to .env.
+4. Start the development server:
    ```bash
    npm start
    ```
-
-4. **Run the app:**
-
-   * For Android:
-
-     ```bash
-     npx react-native run-android
-     ```
-
-   * For iOS:
-
-     ```bash
-     npx react-native run-ios
-     ```
+5. Run the app:
+   - Android: `npx react-native run-android`
+   - iOS: `npx react-native run-ios`
 
 ## 📂 Project Structure
-
 ```
 ApnaMenuApp/
 ├── android/
 ├── ios/
-├── src
-|   ├── App.tsx
+├── src/
+│   ├── App.tsx
 │   ├── components/
 │   ├── screens/
 │   ├── navigation/
-│   ├── redux/
-│   └── utils/
+│   └── services/
 ├── package.json
 └── README.md
 ```
 
+## 📅 Roadmap
+- QR-code-based customer website for live menu access.
+- Multi-language support for the chatbot and voice commands.
+- In-app payment integration.
+
 ## 🤝 Contributing
-
-Contributions are welcome! Please follow these steps:
-
 1. Fork the repository.
-
-2. Create a new branch:
-
-   ```bash
-   git checkout -b feature/YourFeature
-   ```
-
-3. Make your changes and commit them:
-
-   ```bash
-   git commit -m 'Add YourFeature'
-   ```
-
-4. Push to the branch:
-
-   ```bash
-   git push origin feature/YourFeature
-   ```
-
+2. Create a branch: `git checkout -b feature/YourFeature`
+3. Commit changes: `git commit -m 'Add YourFeature'`
+4. Push to branch: `git push origin feature/YourFeature`
 5. Open a pull request.
-
-
-## 📬 Contact
-
-For any inquiries or feedback, please contact [Yashvardhan Shekhar](mailto:yashvardhanshekhar@example.com).
 
 ---
 
-Feel free to customize this `README.md` further to align with your project's specifics and branding.
+## 📬 Contact
+For inquiries, reach out to [Yashvardhan Shekhar](https://www.linkedin.com/in/yashvardhanshekhar/).
+
+---
+
+![React Native](https://img.shields.io/badge/React_Native-61DAFB?logo=react&logoColor=white)
+![Firebase](https://img.shields.io/badge/Firebase-FFCA28?logo=firebase&logoColor=white)
+```
