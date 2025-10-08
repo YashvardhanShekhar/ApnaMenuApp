@@ -82,7 +82,7 @@ const MenuItemsScreen = () => {
   const loadMenuItems = async () => {
     try {
       setRefreshing(true);
-      const url = fetchUrl();
+      const url = await fetchUrl();
       setUrl(url);
       const menu: Menu = await fetchMenu();
       if (menu) {
@@ -545,7 +545,7 @@ const MenuItemsScreen = () => {
 
               <View style={styles.qrCodeContainer}>
                 <QRCode
-                  value={`https://apnamenu.vercel.app/${url}`}
+                  value={`https://apnamenu.vercel.app/${encodeURIComponent(url)}/menu`}
                   size={qrSize}
                   color="black"
                   backgroundColor="white"
@@ -553,12 +553,16 @@ const MenuItemsScreen = () => {
               </View>
               <TouchableOpacity
                 onPress={async () =>
-                  Linking.openURL(`https://apnamenu.vercel.app/${url}`)
+                  Linking.openURL(
+                    `https://apnamenu.vercel.app/${encodeURIComponent(url)}/menu`,
+                  )
                 }
                 onLongPress={async () =>
-                  Clipboard.setString(`https://apnamenu.vercel.app/${url}`)
+                  Clipboard.setString(
+                    `https://apnamenu.vercel.app/${encodeURIComponent(url)}/menu`,
+                  )
                 }>
-                <Text style={styles.qrUrlText}>apnamenu.vercel.app/{url}</Text>
+                <Text style={styles.qrUrlText}>apnamenu.vercel.app/{url}/menu</Text>
               </TouchableOpacity>
             </View>
           </View>
